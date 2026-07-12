@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B111A">
+<title>Valencia · sub-4h</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Puerta -->
+<div class="wrap" id="puerta" hidden>
+  <div class="gate">
+    <div class="gate-bib">147</div>
+    <div class="gate-lb">días hasta Valencia</div>
+    <input id="pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="current-password">
+    <button class="save" id="bEntrar">Entrar</button>
+    <div class="msg" id="msgPin"></div>
+  </div>
+</div>
+
+<!-- Panel -->
+<div class="wrap" id="panel" hidden>
+  <header>
+    <div class="brand">Maratón Valencia<b>6 dic 2026 · sub-4h</b></div>
+    <div class="bib"><div class="n" id="dleft">—</div><div class="l">días</div></div>
+  </header>
+
+  <nav role="tablist">
+    <button id="tHoy" role="tab" aria-selected="true">Hoy</button>
+    <button id="tProg" role="tab" aria-selected="false">Progreso</button>
+  </nav>
+
+  <section id="vHoy"></section>
+  <section id="vProg" hidden></section>
+
+  <footer>Roman · 5:41/km · romandev.app</footer>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
