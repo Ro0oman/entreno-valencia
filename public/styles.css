@@ -55,6 +55,7 @@ nav button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 .session .kind{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9px;
   letter-spacing:.16em;text-transform:uppercase;padding:4px 8px;border-radius:5px;margin-bottom:12px}
 .k-rodaje{background:rgba(76,154,255,.14);color:var(--blue)}
+.k-calidad{background:rgba(181,123,255,.16);color:#B57BFF}
 .k-larga{background:rgba(255,176,32,.14);color:var(--ceiling)}
 .k-fuerza,.k-parque{background:rgba(47,217,138,.14);color:var(--zone)}
 .k-descanso{background:rgba(123,141,166,.14);color:var(--muted)}
