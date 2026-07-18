@@ -87,10 +87,25 @@ const notasHTML = notes => !notes ? '' :
     return `<div class="note ${lv}"><span class="nlab">${NOTELAB[lv]}</span><p>${esc(n[0])}</p></div>`;
   }).join('')}</div>`;
 
-/* Lista de pasos con etiqueta (pliometría / circuito de barras) */
-const listaHTML = (titulo, items) => !items || !items.length ? '' :
-  `<div class="block-lab">${esc(titulo)}</div><div class="steps">${
-    items.map(it => `<div><span class="g">›</span>${esc(it)}</div>`).join('')}</div>`;
+/* Acordeón de bloques (pliometría / barras): cada grupo es una caja clicable
+   que despliega sus ejercicios con dosis (series × repes) y su nota. */
+function acordeonHTML(grupos) {
+  if (!grupos || !grupos.length) return '';
+  return `<div class="acc">${grupos.map((g, i) => {
+    const open = i === 0;
+    const filas = g.ej.map(e => `<div class="acc-ex">
+        <div class="acc-ex-top"><span class="acc-ex-n">${esc(e.ej)}</span><span class="acc-ex-d">${esc(e.dosis || '')}</span></div>
+        ${e.nota ? `<div class="acc-ex-note">${esc(e.nota)}</div>` : ''}
+      </div>`).join('');
+    return `<div class="acc-item bp${open ? ' open' : ''}">${CORNERS}
+      <button class="acc-head" type="button" aria-expanded="${open}">
+        <span class="acc-tt"><span class="acc-chev">▸</span><span class="acc-t">${esc(g.t)}</span>${g.st ? `<span class="acc-st">${esc(g.st)}</span>` : ''}</span>
+        <span class="acc-count">${g.ej.length} EJ</span>
+      </button>
+      <div class="acc-body">${filas}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
 
 /* Envuelve el "N km" final del título en un span apagado */
 const tituloHTML = t => esc(t).replace(/(\d+[.,]?\d*\s*km)\s*$/i, '<span class="dim">$1</span>');
@@ -156,8 +171,7 @@ function pintarHoy() {
       <div><div class="t">SIN PULSO OBJETIVO</div><div class="d">Día de fuerza y salto. Manda el RPE.</div></div>
     </div>`
       + (s.sub ? `<p class="body">${esc(s.sub)}</p>` : '')
-      + listaHTML('Pliometría · en el césped', s.plio)
-      + listaHTML('Circuito de barras', s.bloques);
+      + acordeonHTML(s.grupos);
     body = '';
   }
 
@@ -197,6 +211,18 @@ function pintarHoy() {
   </div>`;
 
   wireRegistro(s, ya);
+  wireAcordeon();
+}
+
+/* Despliega/pliega cada caja del acordeón */
+function wireAcordeon() {
+  document.querySelectorAll('.acc-head').forEach(h => {
+    h.onclick = () => {
+      const item = h.closest('.acc-item');
+      const open = item.classList.toggle('open');
+      h.setAttribute('aria-expanded', open);
+    };
+  });
 }
 
 function regForm(s, ya, hidden) {

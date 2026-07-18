@@ -16,21 +16,30 @@ const NOTA_ROT = ['Rotación externa con goma 2×15 por lado. Lo dejaste; vuelve
 const NOTA_HOMBRO = ['Press hombro: agarre neutro, RPE 6-7, sin bloquear arriba.', 'warn'];
 
 /* Pliometría del PARQUE: el sitio para saltar. En casa el suelo no acompaña;
-   aquí hay césped y piernas razonablemente frescas. Contacto corto y explosivo. */
+   aquí hay césped y piernas razonablemente frescas. Contacto corto y explosivo.
+   Cada ejercicio: { ej, dosis (series × repes/tiempo), nota }. */
 const PLIO_PARQUE = [
-  'Pogo hops · 2-3×20-30" — rebote de tobillo, rodilla casi recta',
-  'Saltos al cajón 30-40-50 cm · 3×5 — sube saltando, BAJA ANDANDO',
-  'A-skips · 2×20 m — técnica y coordinación, no velocidad'
+  { ej: 'Pogo hops', dosis: '2-3 × 20-30"', nota: 'Rebote de tobillo, rodilla casi recta. Contacto corto.' },
+  { ej: 'Saltos al cajón · 30-40-50 cm', dosis: '3 × 5', nota: 'Sube saltando, BAJA ANDANDO. Subes de altura solo si aterrizas suave.' },
+  { ej: 'A-skips', dosis: '2 × 20 m', nota: 'Técnica y coordinación, no velocidad.' }
 ];
-const CIRCUITO_PARQUE = ['15 flexiones', '3×5 dominadas', '3×5 fondos', '3×8 remos invertidos'];
+const CIRCUITO_PARQUE = [
+  { ej: 'Flexiones', dosis: '× 15' },
+  { ej: 'Dominadas', dosis: '3 × 5' },
+  { ej: 'Fondos', dosis: '3 × 5', nota: 'Sin bajar de 90°. El hombro no se negocia.' },
+  { ej: 'Remos invertidos', dosis: '3 × 8' }
+];
 
-/* Sesión de parque completa. Se usa igual en fase base y en el bloque COROS. */
+/* Sesión de parque completa. Se usa igual en fase base y en el bloque COROS.
+   grupos = cajas del acordeón; cada una despliega su lista de ejercicios. */
 function parque() {
   return {
     kind: 'parque', t: 'Parque · barras',
-    sub: 'Primero saltar en el césped con piernas frescas, luego el circuito de barras. Si vienes con las piernas cargadas, sáltate la pliometría: hoy no pasa nada.',
-    plio: PLIO_PARQUE,
-    bloques: CIRCUITO_PARQUE,
+    sub: 'Dos bloques: primero saltar en el césped con piernas frescas, luego el circuito de barras. Si vienes con las piernas cargadas, sáltate la pliometría: hoy no pasa nada.',
+    grupos: [
+      { t: 'Pliometría', st: 'En el césped', ej: PLIO_PARQUE },
+      { t: 'Circuito de barras', st: 'Al terminar los saltos', ej: CIRCUITO_PARQUE }
+    ],
     notes: [
       REGLA_PLIO,
       ['Fondos: sin bajar de 90°. El hombro no se negocia.', 'stop']
