@@ -6,13 +6,9 @@
 export const META = new Date('2026-12-06T00:00:00');
 export const INICIO_COROS = new Date('2026-08-17T00:00:00');
 
-/* Bloque de pliometría v2.1 — antes de levantar, piernas frescas.
-   Superficie blanda, contacto corto y explosivo, para al primer aviso del Aquiles. */
-const PLIO = 'Pogo hops 2-3×20-30" · A-skips 2×20 m · saltos a dos pies 2×8-10 · 6-8 min';
-const PLIO_SUAVE = 'Suave y corta: pogo hops 2×20" · A-skips 2×20 m. Vienes de viaje, sin caña.';
-
+/* Los saltos de impacto (cajón, A-skips) van al parque, sobre césped (ver parque()).
+   En casa solo pogos en el sitio, dentro de Fuerza B: bajo impacto, cualquier suelo vale. */
 const REGLA_PLIO = ['Solo sobre césped, tierra o pista. Nunca asfalto. Al primer aviso del Aquiles, se acabó.', 'warn'];
-const NOTA_ROT = ['Rotación externa con goma 2×15 por lado. Lo dejaste; vuelve a meterlo.'];
 const NOTA_HOMBRO = ['Press hombro: agarre neutro, RPE 6-7, sin bloquear arriba.', 'warn'];
 
 /* Pliometría del PARQUE: el sitio para saltar. En casa el suelo no acompaña;
@@ -46,6 +42,42 @@ function parque() {
     ]
   };
 }
+
+/* Fuerza A (full body, martes). La sentadilla cambia de carga cada semana;
+   el resto es fijo. Espejo de la rutina de Hevy. */
+function fuerzaA(kg) {
+  return {
+    t: 'Fuerza A', st: 'Full body · 3 series',
+    ej: [
+      { ej: 'Sentadilla (barra)', dosis: kg ? `${kg} kg · 3 × 5` : '3 × 5 · la carga que toque', nota: 'La carga de la semana. RPE 7-8, nada al fallo.' },
+      { ej: 'Peso muerto rumano (barra)', dosis: '3 × 8', nota: 'Bisagra de cadera, espalda neutra.' },
+      { ej: 'Press de banca (barra)', dosis: '3 × 6', nota: 'Codos a ~45°, sin rebote. El hombro manda.' },
+      { ej: 'Remo inclinado a una pierna', dosis: '3 × 5-6' },
+      { ej: 'Elevación de gemelos de pie (mancuerna)', dosis: '3 × 13-15' },
+      { ej: 'Elevación de tibiales', dosis: '3 × 20', nota: 'Seguro anti-Aquiles y anti-espinilla. No te la saltes.' },
+      { ej: 'Plancha', dosis: '3 series' },
+      { ej: 'Rotación externa con goma', dosis: '2 × 15', nota: 'Por lado. Tu seguro del hombro, todas las semanas.' }
+    ]
+  };
+}
+
+/* Fuerza B (full body, jueves, sin correr). Incluye los pogos de mantenimiento
+   en el sitio (bajo impacto: valen en casa). Espejo de la rutina de Hevy. */
+const FUERZA_B = {
+  t: 'Fuerza B', st: 'Full body · sin correr',
+  ej: [
+    { ej: 'Sentadilla búlgara', dosis: '3 × 10' },
+    { ej: 'Empuje de caderas (barra)', dosis: '3 × 10' },
+    { ej: 'Press de hombros (mancuerna)', dosis: '3 × 8', nota: 'Agarre neutro, RPE 6-7, sin bloquear arriba.' },
+    { ej: 'Jalón al pecho (cable)', dosis: '3 × 8' },
+    { ej: 'Tirón a la cara', dosis: '3 × 15', nota: 'Salud de hombro y postura.' },
+    { ej: 'Rotación externa con goma', dosis: '2 × 15', nota: 'Por lado. Todas las semanas.' },
+    { ej: 'Elevación de gemelos a una pierna', dosis: '3 × 12' },
+    { ej: 'Abdominal corto con cable', dosis: '3 × 12' },
+    { ej: 'Dead bug', dosis: '3 × 10', nota: 'Core anti-extensión, lumbar pegada al suelo.' },
+    { ej: 'Pogo jumps', dosis: '3 × 30"', nota: 'Rigidez del tendón + cadencia. En el sitio, contacto corto.' }
+  ]
+};
 
 /* Nutrición de la tirada larga, según distancia (v2.1 §6) */
 function nutriLarga(km) {
@@ -81,17 +113,15 @@ BASE.forEach((w, i) => {
   const sem = i + 1;
   const [a, b, c, larga] = w.km;
   const dc = w.descarga ? ' (semana de descarga)' : '';
-  const tresSeries = w.viaje || w.descarga;
-  const cargaFA = w.descarga ? ` (cargas -20%, 3 series)` : (w.viaje ? ' (3 series)' : '');
 
   /* Semana 1: Londres. No cabe en la plantilla; se define a mano. */
   if (w.viaje) {
     PLAN[w.lunes] = {
       kind: 'rodaje', t: 'Rodaje 8 km + Fuerza A', km: 8, hr: 'facil',
-      sub: `Arranque del plan. Semana rara: mañana te vas a Londres. ${PLIO_SUAVE}`,
+      sub: 'Arranque del plan. Semana rara: mañana te vas a Londres. Rodaje fácil y Fuerza A tranquila, que vienes justo de descanso.',
+      grupos: [fuerzaA(w.sentadilla)],
       notes: [
-        REGLA_PLIO,
-        [`Fuerza A: sentadilla ${w.sentadilla} kg, solo 3 series. Sin apretar, vienes justo de descanso.`],
+        ['Fuerza A sin apretar: RPE 7, nada al fallo.'],
         ['No compenses lo de Londres el domingo. Compensar es la forma más rápida de lesionarse en la S1.', 'warn']
       ]
     };
@@ -99,12 +129,11 @@ BASE.forEach((w, i) => {
     PLAN[mas(w.lunes, 2)] = { kind: 'descanso', t: 'Londres ✈️', sub: 'Anda todo lo que puedas. No busques meter kilómetros de carrera.' };
     PLAN[mas(w.lunes, 3)] = { kind: 'descanso', t: 'Londres ✈️', sub: 'Último día fuera. Mañana se retoma con fuerza en casa.' };
     PLAN[mas(w.lunes, 4)] = {
-      kind: 'fuerza', t: 'Pliometría suave + Fuerza A',
-      sub: `Sin correr. ${PLIO_SUAVE}`,
+      kind: 'fuerza', t: 'Fuerza A',
+      sub: 'Vuelta de Londres. Fuerza A completa en casa. Los saltos, mejor mañana en el parque sobre césped.',
+      grupos: [fuerzaA(w.sentadilla)],
       notes: [
-        REGLA_PLIO,
-        [`Sentadilla ${w.sentadilla} kg, solo 3 series. Para al menor aviso del Aquiles.`, 'warn'],
-        NOTA_ROT
+        ['3 series por ejercicio. Para al menor aviso del Aquiles.', 'warn']
       ]
     };
     PLAN[mas(w.lunes, 5)] = parque();
@@ -122,13 +151,16 @@ BASE.forEach((w, i) => {
     sub: 'Sin correr. El descanso es parte del plan, no un premio.'
   };
 
-  /* Martes — rodaje + pliometría + Fuerza A */
+  /* Martes — rodaje fácil por la mañana + Fuerza A por la tarde */
   PLAN[mas(w.lunes, 1)] = {
     kind: 'rodaje', t: `Rodaje ${a} km + Fuerza A`, km: a, hr: 'facil',
-    sub: `Rodaje por la mañana. Por la tarde, pliometría antes de levantar: ${PLIO}`,
+    sub: 'Rodaje fácil por la mañana; Fuerza A por la tarde. El ritmo es una consecuencia, no un objetivo.',
+    grupos: [fuerzaA(w.sentadilla)],
     notes: [
-      REGLA_PLIO,
-      [`Fuerza A: sentadilla ${w.sentadilla} kg${cargaFA}. Nada al fallo, RPE 7-8.`]
+      w.descarga
+        ? ['Semana de descarga: la sentadilla baja un 20%. No busques records.', 'warn']
+        : ['Fuerza A por la tarde. Nada al fallo, RPE 7-8.'],
+      ['Techo de barra: 67 kg. Progresas de 2 en 2.']
     ]
   };
 
@@ -150,14 +182,13 @@ BASE.forEach((w, i) => {
     };
   }
 
-  /* Jueves — pliometría + Fuerza B */
+  /* Jueves — Fuerza B (incluye los pogos de mantenimiento) */
   PLAN[mas(w.lunes, 3)] = {
-    kind: 'fuerza', t: 'Pliometría + Fuerza B',
-    sub: `Sin correr. Pliometría antes de levantar: ${PLIO}`,
+    kind: 'fuerza', t: 'Fuerza B',
+    sub: 'Sin correr. Full body, con los pogos de mantenimiento al final.',
+    grupos: [FUERZA_B],
     notes: [
-      REGLA_PLIO,
       NOTA_HOMBRO,
-      NOTA_ROT,
       ['Techo de barra: 67 kg. Progresas de 2 en 2.']
     ]
   };
@@ -188,9 +219,9 @@ BASE.forEach((w, i) => {
 /* Del 17 ago al 6 dic manda COROS. Aquí solo se fijan los anclajes. */
 export const COROS = {
   1: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil' },
-  2: { kind: 'rodaje', t: 'Plan COROS + Fuerza A', sub: 'Pliometría de mantenimiento: 1 día, volumen bajo.', hr: 'facil', km: true },
+  2: { kind: 'rodaje', t: 'Plan COROS + Fuerza A', sub: 'Lo que ponga el reloj + Fuerza A por la tarde.', hr: 'facil', km: true, grupos: [fuerzaA()] },
   3: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
-  4: { kind: 'fuerza', t: 'Fuerza B + pliometría', sub: 'Techo de barra 67 kg. Hombro: agarre neutro, sin bloquear arriba.' },
+  4: { kind: 'fuerza', t: 'Fuerza B', sub: 'Sin correr. Full body con pogos de mantenimiento.', grupos: [FUERZA_B], notes: [NOTA_HOMBRO, ['Techo de barra: 67 kg. Progresas de 2 en 2.']] },
   5: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
   6: parque(),
   0: { kind: 'larga', t: 'Tirada larga · COROS', sub: 'La sesión sagrada. Hidratación y guayaba según duración.', hr: 'larga', km: true }

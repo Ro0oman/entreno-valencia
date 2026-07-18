@@ -87,14 +87,26 @@ const notasHTML = notes => !notes ? '' :
     return `<div class="note ${lv}"><span class="nlab">${NOTELAB[lv]}</span><p>${esc(n[0])}</p></div>`;
   }).join('')}</div>`;
 
-/* Acordeón de bloques (pliometría / barras): cada grupo es una caja clicable
-   que despliega sus ejercicios con dosis (series × repes) y su nota. */
-function acordeonHTML(grupos) {
+/* Enlace de demostración por ejercicio: si tiene .video, ese; si no, una búsqueda
+   en YouTube generada del nombre. Cubre todo (incluidos drills) sin API ni dependencia. */
+function videoUrl(e) {
+  if (e.video) return e.video;
+  const q = encodeURIComponent(e.ej.replace(/\(.*?\)/g, '').trim() + ' técnica ejercicio');
+  return `https://www.youtube.com/results?search_query=${q}`;
+}
+
+/* Acordeón de bloques (fuerza / pliometría / barras): cada grupo es una caja
+   clicable que despliega sus ejercicios con dosis (series × repes), nota y
+   un enlace ▷ a la demostración. `abrirPrimera`: si abre la primera caja de salida. */
+function acordeonHTML(grupos, abrirPrimera = true) {
   if (!grupos || !grupos.length) return '';
   return `<div class="acc">${grupos.map((g, i) => {
-    const open = i === 0;
+    const open = abrirPrimera && i === 0;
     const filas = g.ej.map(e => `<div class="acc-ex">
-        <div class="acc-ex-top"><span class="acc-ex-n">${esc(e.ej)}</span><span class="acc-ex-d">${esc(e.dosis || '')}</span></div>
+        <div class="acc-ex-top">
+          <span class="acc-ex-n">${esc(e.ej)}<a class="acc-ex-v" href="${esc(videoUrl(e))}" target="_blank" rel="noopener" title="Ver demostración">▷</a></span>
+          <span class="acc-ex-d">${esc(e.dosis || '')}</span>
+        </div>
         ${e.nota ? `<div class="acc-ex-note">${esc(e.nota)}</div>` : ''}
       </div>`).join('');
     return `<div class="acc-item bp${open ? ' open' : ''}">${CORNERS}
@@ -141,39 +153,16 @@ function pintarHoy() {
   let quote = '';
   if (s.hr) { quote = QUOTE; body = body.replace(QUOTE, '').replace(/\s+/g, ' ').trim(); }
 
-  /* fuerza: caja "sin pulso" + lista de pliometría */
-  let fuerzaBlock = '';
-  if (s.kind === 'fuerza') {
-    fuerzaBlock = `<div class="nopulse bp">${CORNERS}
+  /* Días sin pulso (fuerza / parque): caja "sin pulso" antes del acordeón */
+  const sinPulso = (s.kind === 'fuerza' || s.kind === 'parque')
+    ? `<div class="nopulse bp">${CORNERS}
       <span class="heart">♥</span>
       <div><div class="t">SIN PULSO OBJETIVO</div><div class="d">Hoy manda el RPE, no la FC.</div></div>
-    </div>`;
-    const m = /Pliometría antes de levantar:\s*(.+)$/.exec(s.sub || '');
-    if (m) {
-      const items = [];
-      m[1].split(' · ').map(x => x.trim()).filter(Boolean).forEach(it => {
-        // "6-8 min" y similares son la duración total: se pegan al último ejercicio
-        if (/^[\d–-]+\s*min$/i.test(it) && items.length) items[items.length - 1] += ' · ' + it;
-        else items.push(it);
-      });
-      body = 'Pliometría antes de levantar:';
-      fuerzaBlock += `<p class="body">${esc(body)}</p><div class="steps">${
-        items.map(it => `<div><span class="g">›</span>${esc(it)}</div>`).join('')}</div>`;
-      body = '';
-    }
-  }
+    </div>` : '';
 
-  /* parque: caja "sin pulso" + pliometría en césped + circuito de barras */
-  let parqueBlock = '';
-  if (s.kind === 'parque') {
-    parqueBlock = `<div class="nopulse bp">${CORNERS}
-      <span class="heart">♥</span>
-      <div><div class="t">SIN PULSO OBJETIVO</div><div class="d">Día de fuerza y salto. Manda el RPE.</div></div>
-    </div>`
-      + (s.sub ? `<p class="body">${esc(s.sub)}</p>` : '')
-      + acordeonHTML(s.grupos);
-    body = '';
-  }
+  /* Acordeón de ejercicios. En días de correr (con pulso) arranca plegado para
+     no tapar la sesión de carrera; en días de fuerza/parque, la primera abierta. */
+  const acordeon = acordeonHTML(s.grupos, !s.hr);
 
   /* registro */
   const regDone = ya ? `<div class="reg-done bp">${CORNERS}
@@ -202,10 +191,10 @@ function pintarHoy() {
     ${tagsRow}
     ${regDone}
     ${pulso}
-    ${fuerzaBlock}
-    ${parqueBlock}
+    ${sinPulso}
     ${body ? `<p class="body">${esc(body)}</p>` : ''}
     ${quote ? `<p class="quote">"${quote}"</p>` : ''}
+    ${acordeon}
     ${notasHTML(s.notes)}
     ${regArea}
   </div>`;
