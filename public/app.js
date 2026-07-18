@@ -87,6 +87,11 @@ const notasHTML = notes => !notes ? '' :
     return `<div class="note ${lv}"><span class="nlab">${NOTELAB[lv]}</span><p>${esc(n[0])}</p></div>`;
   }).join('')}</div>`;
 
+/* Lista de pasos con etiqueta (pliometría / circuito de barras) */
+const listaHTML = (titulo, items) => !items || !items.length ? '' :
+  `<div class="block-lab">${esc(titulo)}</div><div class="steps">${
+    items.map(it => `<div><span class="g">›</span>${esc(it)}</div>`).join('')}</div>`;
+
 /* Envuelve el "N km" final del título en un span apagado */
 const tituloHTML = t => esc(t).replace(/(\d+[.,]?\d*\s*km)\s*$/i, '<span class="dim">$1</span>');
 
@@ -143,6 +148,19 @@ function pintarHoy() {
     }
   }
 
+  /* parque: caja "sin pulso" + pliometría en césped + circuito de barras */
+  let parqueBlock = '';
+  if (s.kind === 'parque') {
+    parqueBlock = `<div class="nopulse bp">${CORNERS}
+      <span class="heart">♥</span>
+      <div><div class="t">SIN PULSO OBJETIVO</div><div class="d">Día de fuerza y salto. Manda el RPE.</div></div>
+    </div>`
+      + (s.sub ? `<p class="body">${esc(s.sub)}</p>` : '')
+      + listaHTML('Pliometría · en el césped', s.plio)
+      + listaHTML('Circuito de barras', s.bloques);
+    body = '';
+  }
+
   /* registro */
   const regDone = ya ? `<div class="reg-done bp">${CORNERS}
     <div class="reg-head"><span class="lab">SESIÓN REGISTRADA</span>
@@ -171,6 +189,7 @@ function pintarHoy() {
     ${regDone}
     ${pulso}
     ${fuerzaBlock}
+    ${parqueBlock}
     ${body ? `<p class="body">${esc(body)}</p>` : ''}
     ${quote ? `<p class="quote">"${quote}"</p>` : ''}
     ${notasHTML(s.notes)}

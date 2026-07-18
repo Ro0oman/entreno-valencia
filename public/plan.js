@@ -15,6 +15,29 @@ const REGLA_PLIO = ['Solo sobre césped, tierra o pista. Nunca asfalto. Al prime
 const NOTA_ROT = ['Rotación externa con goma 2×15 por lado. Lo dejaste; vuelve a meterlo.'];
 const NOTA_HOMBRO = ['Press hombro: agarre neutro, RPE 6-7, sin bloquear arriba.', 'warn'];
 
+/* Pliometría del PARQUE: el sitio para saltar. En casa el suelo no acompaña;
+   aquí hay césped y piernas razonablemente frescas. Contacto corto y explosivo. */
+const PLIO_PARQUE = [
+  'Pogo hops · 2-3×20-30" — rebote de tobillo, rodilla casi recta',
+  'Saltos al cajón 30-40-50 cm · 3×5 — sube saltando, BAJA ANDANDO',
+  'A-skips · 2×20 m — técnica y coordinación, no velocidad'
+];
+const CIRCUITO_PARQUE = ['15 flexiones', '3×5 dominadas', '3×5 fondos', '3×8 remos invertidos'];
+
+/* Sesión de parque completa. Se usa igual en fase base y en el bloque COROS. */
+function parque() {
+  return {
+    kind: 'parque', t: 'Parque · barras',
+    sub: 'Primero saltar en el césped con piernas frescas, luego el circuito de barras. Si vienes con las piernas cargadas, sáltate la pliometría: hoy no pasa nada.',
+    plio: PLIO_PARQUE,
+    bloques: CIRCUITO_PARQUE,
+    notes: [
+      REGLA_PLIO,
+      ['Fondos: sin bajar de 90°. El hombro no se negocia.', 'stop']
+    ]
+  };
+}
+
 /* Nutrición de la tirada larga, según distancia (v2.1 §6) */
 function nutriLarga(km) {
   const sodio = ['Verano en Valencia: 400-600 ml de agua/hora + 1-2 cápsulas de sales.', 'warn'];
@@ -75,11 +98,7 @@ BASE.forEach((w, i) => {
         NOTA_ROT
       ]
     };
-    PLAN[mas(w.lunes, 5)] = {
-      kind: 'parque', t: 'Parque · barras',
-      sub: '15 flexiones · 3×5 dominadas · 3×5 fondos · 3×8 remos invertidos',
-      notes: [['Fondos: sin bajar de 90°. El hombro no se negocia.', 'stop']]
-    };
+    PLAN[mas(w.lunes, 5)] = parque();
     PLAN[mas(w.lunes, 6)] = {
       kind: 'larga', t: `Tirada larga ${larga} km`, km: larga, hr: 'larga',
       sub: `Semana 1 de la fase base · ${w.total} km en total. La sesión sagrada: si algo se cae esta semana, no es esta.`,
@@ -146,11 +165,7 @@ BASE.forEach((w, i) => {
   };
 
   /* Sábado — parque */
-  PLAN[mas(w.lunes, 5)] = {
-    kind: 'parque', t: 'Parque · barras',
-    sub: '15 flexiones · 3×5 dominadas · 3×5 fondos · 3×8 remos invertidos',
-    notes: [['Fondos: sin bajar de 90°. El hombro no se negocia.', 'stop']]
-  };
+  PLAN[mas(w.lunes, 5)] = parque();
 
   /* Domingo — tirada larga */
   PLAN[mas(w.lunes, 6)] = {
@@ -168,7 +183,7 @@ export const COROS = {
   3: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
   4: { kind: 'fuerza', t: 'Fuerza B + pliometría', sub: 'Techo de barra 67 kg. Hombro: agarre neutro, sin bloquear arriba.' },
   5: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
-  6: { kind: 'parque', t: 'Parque · barras', sub: '15 flexiones · 3×5 dominadas · 3×5 fondos · 3×8 remos invertidos' },
+  6: parque(),
   0: { kind: 'larga', t: 'Tirada larga · COROS', sub: 'La sesión sagrada. Hidratación y guayaba según duración.', hr: 'larga', km: true }
 };
 

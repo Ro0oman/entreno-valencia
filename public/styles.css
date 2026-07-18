@@ -86,9 +86,9 @@ button{font-family:inherit;cursor:pointer}
 .daysbox .n{font-family:var(--hd);font-weight:600;font-size:15px;color:var(--ink)}
 .daysbox .l{font-family:var(--hd);font-weight:600;font-size:9px;letter-spacing:.14em;color:var(--muted)}
 
-.tabbar{position:relative;z-index:2;display:flex;border-top:1px solid var(--divider)}
-.tabbar button{flex:1;text-align:center;padding:12px 0 16px;border:0;border-top:2px solid transparent;margin-top:-1px;
-  background:none;font-family:var(--hd);font-weight:600;font-size:12px;letter-spacing:.14em;color:var(--muted2)}
+.tabbar{position:relative;z-index:2;display:flex;border-top:1px solid var(--divider);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar button{flex:1;text-align:center;padding:17px 0 21px;border:0;border-top:3px solid transparent;margin-top:-1px;
+  background:none;font-family:var(--hd);font-weight:600;font-size:14px;letter-spacing:.16em;color:var(--muted2)}
 .tabbar button[aria-selected="true"]{border-top-color:var(--accent);color:var(--ink)}
 
 /* ============================================================
@@ -137,6 +137,10 @@ button{font-family:inherit;cursor:pointer}
 .nopulse .heart{font-family:var(--hd);font-weight:600;font-size:26px;color:var(--n300)}
 .nopulse .t{font-family:var(--hd);font-weight:600;font-size:11px;letter-spacing:.12em;color:var(--muted)}
 .nopulse .d{font-size:12px;color:var(--muted2)}
+
+/* Etiqueta de bloque (pliometría / circuito) */
+.block-lab{font-family:var(--hd);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin:2px 0 5px}
 
 /* Lista de pasos (pliometría) */
 .steps{display:flex;flex-direction:column;margin:0 0 15px;font-size:12.5px}
