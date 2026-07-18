@@ -1,4 +1,4 @@
-import { META, BASE, INICIO_COROS, sesionDe } from './plan.js';
+import { META, BASE, INICIO_COROS, sesionDe } from './plan.js?v=2';
 
 /* ---------- API ---------- */
 const TK = 'entreno:token';

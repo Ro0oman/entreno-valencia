@@ -96,6 +96,8 @@ app.delete('/api/sesiones/:date', auth, (req, res) => {
 
 app.get('/salud', (_req, res) => res.json({ ok: true, sesiones: leer().length }));
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
+// Sin caché de larga duración: revalida cada carga (ETag → 304 si no cambió).
+// Evita que un deploy deje html-nuevo + js-viejo en el navegador.
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0, etag: true }));
 
 app.listen(PORT, '0.0.0.0', () => console.log(`Escuchando en :${PORT}`));
