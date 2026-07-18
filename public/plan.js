@@ -172,7 +172,24 @@ export const COROS = {
   0: { kind: 'larga', t: 'Tirada larga · COROS', sub: 'La sesión sagrada. Hidratación y guayaba según duración.', hr: 'larga', km: true }
 };
 
+/* ============================================================
+   AJUSTES — cambios puntuales acordados en el chat de coaching.
+   Se aplican POR ENCIMA del plan generado: sesionDe() los mira primero.
+   Cada entrada lleva su 'motivo' para que el git log explique el porqué.
+   Con el objeto vacío, el plan se comporta igual que sin esta capa.
+
+   Ejemplo (borrar cuando no aplique):
+   '2026-07-19': {
+     kind: 'descanso', t: 'Descanso extra',
+     sub: 'Cuádriceps KO de la Fuerza A del viernes. La larga se mueve al lunes.',
+     motivo: 'DOMS cuádriceps 18-jul — 4ª serie de sentadilla'
+   },
+   ============================================================ */
+export const AJUSTES = {
+};
+
 export function sesionDe(fecha) {
+  if (AJUSTES[fecha]) return AJUSTES[fecha];
   if (fecha === '2026-12-06') return {
     kind: 'larga', t: 'MARATÓN VALENCIA', hr: 'larga',
     sub: '42,195 km a 5:41/km. Hoy no se entrena, hoy se cobra.',
