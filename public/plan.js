@@ -44,37 +44,38 @@ function parque() {
 }
 
 /* Fuerza A (full body, martes). La sentadilla cambia de carga cada semana;
-   el resto es fijo. Espejo de la rutina de Hevy. */
+   el resto son las cargas reales de tu sesión registrada (log de Hevy, S1). */
 function fuerzaA(kg) {
   return {
     t: 'Fuerza A', st: 'Full body · 3 series',
     ej: [
       { ej: 'Sentadilla (barra)', dosis: kg ? `${kg} kg · 3 × 5` : '3 × 5 · la carga que toque', nota: 'La carga de la semana. RPE 7-8, nada al fallo.' },
-      { ej: 'Peso muerto rumano (barra)', dosis: '3 × 8', nota: 'Bisagra de cadera, espalda neutra.' },
-      { ej: 'Press de banca (barra)', dosis: '3 × 6', nota: 'Codos a ~45°, sin rebote. El hombro manda.' },
-      { ej: 'Remo inclinado a una pierna', dosis: '3 × 5-6' },
-      { ej: 'Elevación de gemelos de pie (mancuerna)', dosis: '3 × 13-15' },
-      { ej: 'Elevación de tibiales', dosis: '3 × 20', nota: 'Seguro anti-Aquiles y anti-espinilla. No te la saltes.' },
-      { ej: 'Plancha', dosis: '3 series' },
-      { ej: 'Rotación externa con goma', dosis: '2 × 15', nota: 'Por lado. Tu seguro del hombro, todas las semanas.' }
+      { ej: 'Peso muerto rumano (barra)', dosis: '35 kg · 3 × 8', nota: 'Bisagra de cadera, espalda neutra.' },
+      { ej: 'Press de banca (barra)', dosis: '45 kg · 3 × 6', nota: 'Codos a ~45°, sin rebote. El hombro manda.' },
+      { ej: 'Remo inclinado a una pierna', dosis: '20 kg · 3 × 5-6' },
+      { ej: 'Elevación de gemelos de pie (mancuerna)', dosis: '26 kg · 3 × 13-15' },
+      { ej: 'Elevación de tibiales', dosis: '3 × 20', nota: 'Peso corporal. Seguro anti-Aquiles y anti-espinilla.' },
+      { ej: 'Plancha', dosis: '3 × 40"' },
+      { ej: 'Rotación externa con goma', dosis: '2 × 15', nota: 'Con goma, por lado. Tu seguro del hombro, todas las semanas.' }
     ]
   };
 }
 
 /* Fuerza B (full body, jueves, sin correr). Incluye los pogos de mantenimiento
-   en el sitio (bajo impacto: valen en casa). Espejo de la rutina de Hevy. */
+   en el sitio (bajo impacto: valen en casa). Los kilos son ORIENTATIVOS
+   (Roman no los registró): puntos de partida para ajustar sobre la marcha. */
 const FUERZA_B = {
-  t: 'Fuerza B', st: 'Full body · sin correr',
+  t: 'Fuerza B', st: 'Full body · cargas orientativas',
   ej: [
-    { ej: 'Sentadilla búlgara', dosis: '3 × 10' },
-    { ej: 'Empuje de caderas (barra)', dosis: '3 × 10' },
-    { ej: 'Press de hombros (mancuerna)', dosis: '3 × 8', nota: 'Agarre neutro, RPE 6-7, sin bloquear arriba.' },
-    { ej: 'Jalón al pecho (cable)', dosis: '3 × 8' },
-    { ej: 'Tirón a la cara', dosis: '3 × 15', nota: 'Salud de hombro y postura.' },
-    { ej: 'Rotación externa con goma', dosis: '2 × 15', nota: 'Por lado. Todas las semanas.' },
-    { ej: 'Elevación de gemelos a una pierna', dosis: '3 × 12' },
-    { ej: 'Abdominal corto con cable', dosis: '3 × 12' },
-    { ej: 'Dead bug', dosis: '3 × 10', nota: 'Core anti-extensión, lumbar pegada al suelo.' },
+    { ej: 'Sentadilla búlgara', dosis: '12 kg · 3 × 10', nota: 'Peso por mancuerna. Ajústalo a tu sensación.' },
+    { ej: 'Empuje de caderas (barra)', dosis: '50 kg · 3 × 10' },
+    { ej: 'Press de hombros (mancuerna)', dosis: '12 kg · 3 × 8', nota: 'Agarre neutro, RPE 6-7, sin bloquear arriba.' },
+    { ej: 'Jalón al pecho (cable)', dosis: '35 kg · 3 × 8' },
+    { ej: 'Tirón a la cara', dosis: '18 kg · 3 × 15', nota: 'Salud de hombro y postura.' },
+    { ej: 'Rotación externa con goma', dosis: '2 × 15', nota: 'Con goma, por lado. Todas las semanas.' },
+    { ej: 'Elevación de gemelos a una pierna', dosis: '3 × 12', nota: 'Peso corporal; añade mancuerna si te sobra.' },
+    { ej: 'Abdominal corto con cable', dosis: '22 kg · 3 × 12' },
+    { ej: 'Dead bug', dosis: '3 × 10', nota: 'Peso corporal. Core anti-extensión, lumbar pegada al suelo.' },
     { ej: 'Pogo jumps', dosis: '3 × 30"', nota: 'Rigidez del tendón + cadencia. En el sitio, contacto corto.' }
   ]
 };
