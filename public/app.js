@@ -1,4 +1,4 @@
-import { META, BASE, sesionDe } from './plan.js';
+import { META, BASE, INICIO_COROS, sesionDe } from './plan.js';
 
 /* ---------- API ---------- */
 const TK = 'entreno:token';
@@ -382,14 +382,89 @@ function pintarProg() {
   </div>`;
 }
 
+/* ---------- Vista SEMANA ---------- */
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+let semOffset = 0;
+
+/* Lunes de la semana que contiene a `fechaISO`, desplazado `offset` semanas */
+function lunesDe(fechaISO, offset = 0) {
+  const d = new Date(fechaISO + 'T00:00:00');
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + offset * 7);
+  return iso(d);
+}
+
+/* Etiqueta corta de la derecha de cada día */
+function etiquetaDia(s) {
+  switch (s.kind) {
+    case 'descanso': return /Londres/i.test(s.t) ? '✈ VIAJE' : 'DESCANSO';
+    case 'fuerza':   return 'FUERZA';
+    case 'parque':   return 'PARQUE';
+    case 'calidad':  return 'CALIDAD';
+    case 'larga':    return typeof s.km === 'number' ? `${s.km} km` : 'LARGA';
+    default:         return typeof s.km === 'number' ? `${s.km} km` : 'RODAJE';
+  }
+}
+
+function pintarSemana() {
+  const lunes = lunesDe(hoy(), semOffset);
+  const hoyISO = hoy();
+  const dLun = new Date(lunes + 'T00:00:00');
+  const dDom = new Date(mas(lunes, 6) + 'T00:00:00');
+
+  const nSem = semanaDe(lunes);
+  const base = BASE.find(w => w.lunes === lunes);
+  const fase = nSem ? `FASE BASE · S${nSem}`
+    : (dLun >= INICIO_COROS && dLun <= META) ? 'PLAN COROS'
+    : (dLun > META) ? 'DESPUÉS DE VALENCIA' : 'ANTES DEL PLAN';
+  const rango = dLun.getMonth() === dDom.getMonth()
+    ? `${dLun.getDate()}–${dDom.getDate()} ${MESES[dDom.getMonth()]}`
+    : `${dLun.getDate()} ${MESES[dLun.getMonth()]} – ${dDom.getDate()} ${MESES[dDom.getMonth()]}`;
+
+  const filas = Array.from({ length: 7 }, (_, i) => mas(lunes, i)).map(f => {
+    const s = sesionDe(f);
+    const d = new Date(f + 'T00:00:00');
+    const done = LOGS.find(l => l.date === f);
+    const cls = ['wk-day', s.kind, f === hoyISO ? 'is-hoy' : '', done ? 'is-done' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}">
+      <div class="wk-dt"><span class="wk-dn">${DIAS[d.getDay()].slice(0, 3)}</span><span class="wk-num">${d.getDate()}</span></div>
+      <div class="wk-main"><div class="wk-t">${esc(s.t)}</div></div>
+      <div class="wk-tag">${done ? '<span class="wk-ok">✓</span>' : ''}${esc(etiquetaDia(s))}</div>
+    </div>`;
+  }).join('');
+
+  const kmReg = Math.round(LOGS.filter(l => l.date >= lunes && l.date <= mas(lunes, 6)).reduce((a, l) => a + l.km, 0));
+  const resumen = base
+    ? `<b>${base.total} km</b> previstos${kmReg ? ` · ${kmReg} registrados` : ''}`
+    : (kmReg ? `<b>${kmReg} km</b> registrados` : 'Plan COROS · km según el reloj');
+
+  $('vSemana').innerHTML = `<div class="wk">
+    <div class="wk-head">
+      <button class="wk-nav" id="wkPrev" aria-label="Semana anterior">‹</button>
+      <div class="wk-hc"><div class="wk-fase">${fase}</div><h2>${rango}</h2></div>
+      <button class="wk-nav" id="wkNext" aria-label="Semana siguiente">›</button>
+    </div>
+    <p class="wk-sum">${resumen}${semOffset ? ' · <button class="wk-today" id="wkHoy">volver a esta semana</button>' : ''}</p>
+    <div class="wk-list">${filas}</div>
+  </div>`;
+
+  $('wkPrev').onclick = () => { semOffset--; pintarSemana(); };
+  $('wkNext').onclick = () => { semOffset++; pintarSemana(); };
+  if ($('wkHoy')) $('wkHoy').onclick = () => { semOffset = 0; pintarSemana(); };
+}
+
 /* ---------- Navegación ---------- */
 function ir(tab) {
-  const h = tab === 'hoy';
-  $('tHoy').setAttribute('aria-selected', h);
-  $('tProg').setAttribute('aria-selected', !h);
-  $('vHoy').hidden = !h;
-  $('vProg').hidden = h;
-  h ? pintarHoy() : pintarProg();
+  const vistas = {
+    hoy:  ['tHoy', 'vHoy', pintarHoy],
+    sem:  ['tSem', 'vSemana', pintarSemana],
+    prog: ['tProg', 'vProg', pintarProg]
+  };
+  for (const [k, [tid, vid]] of Object.entries(vistas)) {
+    const on = k === tab;
+    $(tid).setAttribute('aria-selected', on);
+    $(vid).hidden = !on;
+  }
+  vistas[tab][2]();
 }
 
 /* ---------- Puerta / PIN ---------- */
@@ -467,6 +542,7 @@ window.addEventListener('keydown', e => {
 
 $('bEntrar').onclick = entrar;
 $('tHoy').onclick = () => ir('hoy');
+$('tSem').onclick = () => ir('sem');
 $('tProg').onclick = () => ir('prog');
 
 arrancar();

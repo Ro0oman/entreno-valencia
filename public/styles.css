@@ -290,4 +290,39 @@ button{font-family:inherit;cursor:pointer}
 .summary p{margin:0;font-size:12.5px;line-height:1.5}
 .summary b{color:var(--accent400)}
 
+/* ============================================================
+   SEMANA
+   ============================================================ */
+.wk{padding:16px 22px 24px}
+.wk-head{display:flex;align-items:center;gap:10px}
+.wk-nav{width:38px;height:38px;flex:0 0 auto;border:1px solid var(--divider);background:none;
+  font-family:var(--hd);font-weight:600;font-size:20px;color:var(--accent700);display:grid;place-items:center}
+.wk-nav:active{background:var(--surface)}
+.wk-hc{flex:1;text-align:center}
+.wk-fase{font-family:var(--hd);font-weight:600;font-size:10px;letter-spacing:.16em;color:var(--accent)}
+.wk-hc h2{font-size:26px;margin:1px 0}
+.wk-sum{text-align:center;font-size:12px;color:var(--muted);margin:6px 0 16px}
+.wk-sum b{color:var(--text);font-family:var(--hd);font-weight:600}
+.wk-today{background:none;border:0;color:var(--accent);text-decoration:underline;text-underline-offset:2px;
+  font-size:12px;font-family:var(--bd)}
+.wk-list{display:flex;flex-direction:column;gap:7px}
+.wk-day{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--divider);
+  border-left:3px solid var(--muted2)}
+.wk-dt{flex:0 0 auto;width:34px;text-align:center;line-height:1}
+.wk-dn{display:block;font-family:var(--hd);font-weight:600;font-size:10px;letter-spacing:.06em;color:var(--muted)}
+.wk-num{display:block;font-family:var(--hd);font-weight:600;font-size:20px;color:var(--ink)}
+.wk-main{flex:1;min-width:0}
+.wk-t{font-size:13.5px;line-height:1.25;color:var(--text)}
+.wk-tag{flex:0 0 auto;font-family:var(--hd);font-weight:600;font-size:11px;letter-spacing:.04em;color:var(--muted3);
+  display:flex;align-items:center;gap:5px;white-space:nowrap}
+.wk-ok{color:var(--accent);font-size:12px}
+.wk-day.larga{border-left-color:var(--ink)}
+.wk-day.larga .wk-tag{color:var(--ink)}
+.wk-day.rodaje,.wk-day.calidad{border-left-color:var(--accent)}
+.wk-day.fuerza,.wk-day.parque{border-left-color:var(--accent400)}
+.wk-day.descanso{border-left-color:var(--divider);background:rgba(29,31,32,.02)}
+.wk-day.descanso .wk-t,.wk-day.descanso .wk-num{color:var(--muted2)}
+.wk-day.is-hoy{border-color:var(--accent);background:var(--accent100)}
+.wk-day.is-hoy .wk-num{color:var(--accent800)}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
