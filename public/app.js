@@ -506,6 +506,53 @@ function trendBlock(title, hint, vals, fmt, target) {
   return `<div class="pgrp"><h4>${title}</h4><p class="hint">${hint}</p>${body}</div>`;
 }
 
+/* Probabilidad de sub-4: brújula de entrenador, NO una apuesta. Combina cuatro
+   señales visibles de los datos (durabilidad, motor aeróbico, eficiencia,
+   constancia) con el techo de potencial de su 10K. Se puede calcular a una
+   fecha de corte para dibujar su evolución en el tiempo. */
+function probabilidad(logs, corteISO) {
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+  const corte = corteISO || hoy();
+
+  // Durabilidad: media de km/sem (últimas 3 con datos) + tirada más larga, vs
+  // lo que pide un sub-4 (~50 km/sem de pico, larga ~30 km). Es su punto flojo hoy.
+  const porSem = {};
+  logs.forEach(l => { const w = lunesDe(l.date); porSem[w] = (porSem[w] || 0) + l.km; });
+  const ult3 = Object.keys(porSem).sort().slice(-3).map(w => porSem[w]);
+  const kmSem = ult3.length ? ult3.reduce((a, b) => a + b, 0) / ult3.length : 0;
+  const larga = logs.reduce((m, l) => Math.max(m, l.km), 0);
+  const vol = clamp((kmSem / 50) * 0.6 + (larga / 30) * 0.4, 0, 1);
+
+  // Motor aeróbico: ritmo a 148-162 ppm vs ritmo maratón (5:41 = 341 s/km).
+  const ae = logs.filter(l => l.hr >= 148 && l.hr <= 162);
+  const paceAero = ae.length ? ae.at(-1).pace : null;
+  const motor = paceAero == null ? 0.4 : clamp((475 - paceAero) / (475 - 341), 0, 1);
+
+  // Eficiencia: última deriva (menor = mejor). Sin dato, neutro.
+  const der = logs.filter(l => typeof l.deriva === 'number');
+  const efic = der.length ? clamp(1 - (der.at(-1).deriva - 5) / 10, 0, 1) : 0.5;
+
+  // Constancia: sesiones de correr hechas vs previstas en los últimos 28 días.
+  let prev = 0, hechas = 0;
+  for (let i = 0; i < 28; i++) {
+    const dISO = mas(corte, -i);
+    if (typeof sesionDe(dISO).km === 'number') { prev++; if (logs.find(l => l.date === dISO)) hechas++; }
+  }
+  const constancia = prev ? clamp(hechas / prev, 0, 1) : 0.85;
+
+  const readiness = 0.35 * vol + 0.30 * motor + 0.15 * efic + 0.20 * constancia;
+  const pct = Math.round((0.35 + 0.60 * readiness) * 100);   // suelo ~35%, techo ~95%
+  return {
+    pct,
+    comps: [
+      { k: 'Durabilidad · volumen y larga', v: vol },
+      { k: 'Motor aeróbico · ritmo a pulso', v: motor },
+      { k: 'Eficiencia · deriva', v: efic },
+      { k: 'Constancia · plan cumplido', v: constancia }
+    ]
+  };
+}
+
 /* ---------- Vista PROGRESO ---------- */
 function pintarProg() {
   const semanas = Math.ceil(diasRestantes() / 7);
@@ -520,6 +567,26 @@ function pintarProg() {
   const controls = LOGS.filter(l => typeof l.techoPct === 'number' && sesionDe(l.date).kind === 'rodaje').map(l => l.techoPct);
   const ultDeriva = derivas.length ? `${derivas.at(-1)}%` : '—';
   const ultCad = cads.length ? `${cads.at(-1)}` : '—';
+
+  /* Probabilidad de sub-4: número de cabecera + su evolución semana a semana
+     (recalculada con los datos acumulados hasta el final de cada semana). */
+  const prob = probabilidad(LOGS);
+  const probCard = `<div class="prob bp">${CORNERS}
+    <div class="prob-head">
+      <div class="prob-pct"><span class="n">${prob.pct}</span><span class="s">%</span></div>
+      <div class="prob-txt"><div class="prob-lab">PROBABILIDAD DE SUB-4</div>
+        <p>Brújula de entrenador con tus datos, no una apuesta: sube si entrenas bien, pero no garantiza el día D.</p></div>
+    </div>
+    <div class="prob-comps">${prob.comps.map(c => `<div class="prob-comp">
+      <div class="prob-comp-top"><span>${esc(c.k)}</span><span>${Math.round(c.v * 100)}%</span></div>
+      <div class="prob-comp-bar"><div style="width:${Math.round(c.v * 100)}%"></div></div>
+    </div>`).join('')}</div>
+  </div>`;
+  const probPts = BASE.map(w => {
+    const fin = mas(w.lunes, 6);
+    const hasta = LOGS.filter(l => l.date <= fin);
+    return hasta.length ? probabilidad(hasta, fin).pct : null;
+  }).filter(v => v != null);
 
   /* curva de ritmo a pulso aeróbico */
   let curva;
@@ -569,6 +636,10 @@ function pintarProg() {
   $('vProg').innerHTML = `<div class="prog">
     <h2>Progreso</h2>
     <p class="tagline">Camino al sub-4h · 5:41/km</p>
+
+    ${probCard}
+
+    ${trendBlock('Probabilidad en el tiempo', 'Cómo evoluciona tu probabilidad de sub-4 semana a semana. La idea es verla trepar de aquí a diciembre según construyes volumen y motor.', probPts, v => `${v}%`, null)}
 
     <div class="stats">
       <div class="stat"><div class="v">${semanas}</div><div class="k">semanas restantes</div></div>
