@@ -265,6 +265,44 @@ function wireFitSave(a) {
   };
 }
 
+/* Nota de la sesión (0-100). No mide velocidad: mide CONTROL. Los pesos
+   cambian según el tipo de sesión del plan (un fácil y una larga no se juzgan
+   igual). Devuelve la nota, el desglose por componente y un veredicto. */
+function puntuar(a) {
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+  const ses = sesionDe(a.fecha);
+  const kind = ses?.kind;
+  const plan = typeof ses?.km === 'number' ? ses.km : null;
+  const techoPct = a.zonas?.techo ?? 0;
+  const pct = a.deriva?.pct;
+  const cumpl = plan ? 1 - clamp(Math.abs(a.km / plan - 1), 0, 1) : 1;
+  const cumplTxt = plan ? `${String(a.km).replace('.', ',')} de ${plan} km previstos` : 'sesión sin objetivo de km';
+
+  let comps;
+  if (kind === 'larga') {
+    // En la larga la deriva y el km mandan; el pulso alto al final se tolera.
+    comps = [
+      { k: 'Control de pulso', max: 25, pts: 25 * (1 - clamp((techoPct - 20) / 60, 0, 1)), txt: `${techoPct}% sobre 162 (en larga se tolera algo)` },
+      { k: 'Deriva cardíaca', max: 40, pts: pct == null ? 40 : 40 * clamp(1 - (pct - 8) / 12, 0, 1), txt: pct == null ? '—' : `+${pct}% de la 1ª a la 2ª mitad` },
+      { k: 'Cumplimiento', max: 35, pts: 35 * cumpl, txt: cumplTxt }
+    ];
+  } else {
+    // Rodaje fácil (y por defecto): el control del pulso es lo que más pesa.
+    comps = [
+      { k: 'Control de pulso', max: 50, pts: 50 * (1 - clamp(techoPct / 100, 0, 1)), txt: `${techoPct}% del tiempo sobre el techo 162` },
+      { k: 'Deriva cardíaca', max: 30, pts: pct == null ? 30 : 30 * clamp(1 - (pct - 5) / 10, 0, 1), txt: pct == null ? '—' : `+${pct}% de la 1ª a la 2ª mitad` },
+      { k: 'Cumplimiento', max: 20, pts: 20 * cumpl, txt: cumplTxt }
+    ];
+  }
+
+  const nota = Math.round(comps.reduce((s, c) => s + c.pts, 0));
+  const fuga = comps.slice().sort((x, y) => (y.max - y.pts) - (x.max - x.pts))[0];
+  const banda = nota >= 85 ? 'Sesión de manual' : nota >= 70 ? 'Sólida' : nota >= 55 ? 'Correcta, con un pero' : 'Para revisar';
+  const motivo = { 'Control de pulso': 'se te fue de pulso', 'Deriva cardíaca': 'el pulso se disparó en la 2ª mitad', 'Cumplimiento': 'faltó volumen' }[fuga.k];
+  const veredicto = (fuga.max - fuga.pts) < fuga.max * 0.15 ? `${banda}.` : `${banda} — ${motivo}.`;
+  return { nota, veredicto, comps: comps.map(c => ({ ...c, pts: Math.round(c.pts) })) };
+}
+
 /* Construye el desglose visual a partir del JSON del análisis */
 function analisisHTML(a) {
   const rit = v => v ? aRitmo(v) : '—';
@@ -282,7 +320,23 @@ function analisisHTML(a) {
       <span class="an-hr">${s.hr ?? '—'}<small>ppm</small></span>
     </div>`).join('');
 
+  const p = puntuar(a);
+  const scoreBlock = `<div class="an-score bp">${CORNERS}
+      <div class="an-score-head">
+        <div class="an-nota"><span class="n">${p.nota}</span><span class="d">/100</span></div>
+        <div class="an-score-v"><div class="an-score-lab">NOTA DE LA SESIÓN</div><p>${esc(p.veredicto)}</p></div>
+      </div>
+      <div class="an-score-comps">
+        ${p.comps.map(c => `<div class="an-comp">
+          <div class="an-comp-top"><span class="an-comp-k">${esc(c.k)}</span><span class="an-comp-p">${c.pts}<small>/${c.max}</small></span></div>
+          <div class="an-comp-bar"><div style="width:${Math.round(c.pts / c.max * 100)}%"></div></div>
+          <div class="an-comp-t">${esc(c.txt)}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+
   return `<div class="an">
+    ${scoreBlock}
     <div class="an-card bp">${CORNERS}
       <div class="an-lab">ANÁLISIS DEL .FIT</div>
       <div class="an-grid">
