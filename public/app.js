@@ -184,6 +184,13 @@ function pintarHoy() {
     ${regForm(s, ya, ya ? true : false)}
   </div>` : '';
 
+  /* Análisis del .fit: solo lectura, no toca lo registrado. Días de correr. */
+  const fitArea = s.km ? `<div class="fit-area">
+    <button class="fit-btn" id="bFit"><span class="fit-ic">⤢</span> ANALIZAR EL .FIT DEL RELOJ</button>
+    <input type="file" id="fitInput" accept=".fit" hidden>
+    <div id="fitOut"></div>
+  </div>` : '';
+
   $('vHoy').innerHTML = `<div class="hoy">
     <div class="watermark"><div class="big">${dias}</div><div class="lbl">DÍAS A VALENCIA</div></div>
     <div class="kickrow"><span class="kicker">${diaKicker}</span>${rightTag}</div>
@@ -196,11 +203,131 @@ function pintarHoy() {
     ${quote ? `<p class="quote">"${quote}"</p>` : ''}
     ${acordeon}
     ${notasHTML(s.notes)}
+    ${fitArea}
     ${regArea}
   </div>`;
 
   wireRegistro(s, ya);
   wireAcordeon();
+  wireFit();
+}
+
+/* ---------- Análisis del .fit ---------- */
+function wireFit() {
+  const btn = $('bFit'), inp = $('fitInput'), out = $('fitOut');
+  if (!btn || !inp) return;
+  btn.onclick = () => inp.click();
+  inp.onchange = async () => {
+    const file = inp.files[0];
+    if (!file) return;
+    out.innerHTML = `<div class="fit-load">Leyendo ${esc(file.name)}…</div>`;
+    try {
+      const buf = await file.arrayBuffer();
+      const res = await fetch('/api/analizar-fit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream', Authorization: 'Bearer ' + token },
+        body: buf
+      });
+      if (res.status === 401) { localStorage.removeItem(TK); token = null; puerta(); return; }
+      const a = await res.json();
+      if (!res.ok) throw new Error(a.error || 'Error');
+      out.innerHTML = analisisHTML(a);
+      wireFitSave(a);
+    } catch (e) {
+      out.innerHTML = `<div class="err"><span class="bang">!</span><p>${esc(e.message)}</p></div>`;
+    }
+    inp.value = '';
+  };
+}
+
+/* Guarda la sesión con los datos reales del .fit — el .fit manda sobre lo tecleado. */
+function wireFitSave(a) {
+  const b = $('bFitSave');
+  if (!b) return;
+  b.onclick = async () => {
+    const msg = $('fitSaveMsg');
+    b.disabled = true;
+    try {
+      const guardada = await api('/sesiones', {
+        method: 'POST',
+        body: JSON.stringify({ date: a.fecha, km: a.km, hr: a.hrAvg, pace: a.paceAvg })
+      });
+      LOGS = LOGS.filter(l => l.date !== guardada.date).concat(guardada).sort((x, y) => x.date.localeCompare(y.date));
+      msg.innerHTML = `<div class="ok"><span class="sq"></span><b>GUARDADO CON LOS DATOS DEL .FIT.</b></div>`;
+      setTimeout(pintarHoy, 850);
+    } catch (e) {
+      msg.innerHTML = `<div class="err"><span class="bang">!</span><p>${esc(e.message)}</p></div>`;
+      b.disabled = false;
+    }
+  };
+}
+
+/* Construye el desglose visual a partir del JSON del análisis */
+function analisisHTML(a) {
+  const rit = v => v ? aRitmo(v) : '—';
+  const d = a.deriva;
+  const dCls = d.pct == null ? '' : d.pct < 5 ? 'ok' : d.pct <= 8 ? 'warn' : 'hi';
+  const dTxt = d.pct == null ? ''
+    : d.pct < 5 ? 'plana — fácil bien llevado'
+    : d.pct <= 8 ? 'moderada — probablemente calor'
+    : 'alta — te fuiste de pulso en la 2ª mitad';
+  const z = a.zonas, U = a.umbrales;
+  const seg = (w, cls) => w > 0 ? `<div class="an-seg ${cls}" style="flex:${w}" title="${w}%"></div>` : '';
+  const splitRows = a.splits.map(s => `<div class="an-row${s.techo ? ' techo' : ''}">
+      <span class="an-km">km ${s.km}</span>
+      <span class="an-pace">${rit(s.paceSec)}<small>/km</small></span>
+      <span class="an-hr">${s.hr ?? '—'}<small>ppm</small></span>
+    </div>`).join('');
+
+  return `<div class="an">
+    <div class="an-card bp">${CORNERS}
+      <div class="an-lab">ANÁLISIS DEL .FIT</div>
+      <div class="an-grid">
+        <div class="an-cell"><div class="v">${String(a.km).replace('.', ',')}</div><div class="k">KM</div></div>
+        <div class="an-cell"><div class="v">${a.durMin}<small>′</small></div><div class="k">DURACIÓN</div></div>
+        <div class="an-cell"><div class="v">${a.hrAvg ?? '—'}</div><div class="k">FC MEDIA</div></div>
+        <div class="an-cell"><div class="v">${a.hrMax ?? '—'}</div><div class="k">FC MÁX</div></div>
+        <div class="an-cell"><div class="v">${rit(a.paceAvg)}</div><div class="k">RITMO</div></div>
+        <div class="an-cell"><div class="v">${a.cadAvg ?? '—'}</div><div class="k">CADENCIA</div></div>
+      </div>
+    </div>
+
+    <div class="an-save-row">
+      <button class="btn-primary an-save" id="bFitSave">GUARDAR COMO SESIÓN · DATOS DEL .FIT</button>
+      <p class="an-save-hint">Sustituye lo registrado a mano por lo real del fichero. Fin del doble número.</p>
+      <div id="fitSaveMsg"></div>
+    </div>
+
+    <div class="an-blk">
+      <h4>Deriva cardíaca</h4>
+      <p class="an-hint">Lo que la media esconde: cuánto sube el pulso de la 1ª a la 2ª mitad. Menos del 5% es un fácil bien llevado.</p>
+      <div class="an-deriva bp ${dCls}">${CORNERS}
+        <div class="an-half"><span class="hl">1ª MITAD</span><b>${d.hr1}</b><small>ppm · ${rit(d.pace1)}</small></div>
+        <div class="an-arrow">→</div>
+        <div class="an-half"><span class="hl">2ª MITAD</span><b>${d.hr2}</b><small>ppm · ${rit(d.pace2)}</small></div>
+        <div class="an-pct"><span class="p">${d.pct > 0 ? '+' : ''}${d.pct}%</span><span class="t">${dTxt}</span></div>
+      </div>
+    </div>
+
+    <div class="an-blk">
+      <h4>Tiempo en zonas de pulso</h4>
+      <p class="an-hint">Sobre tus umbrales: fácil ${U.facil[0]}–${U.facil[1]} ppm, techo ${U.techo}.</p>
+      <div class="an-bar bp">${CORNERS}
+        <div class="an-track">${seg(z.bajo, 'z0')}${seg(z.facil, 'z1')}${seg(z.alto, 'z2')}${seg(z.techo, 'z3')}</div>
+        <div class="an-leg">
+          <span><i class="z0"></i>&lt;${U.facil[0]} · ${z.bajo}%</span>
+          <span><i class="z1"></i>fácil · ${z.facil}%</span>
+          <span><i class="z2"></i>${U.facil[1] + 1}–${U.techo} · ${z.alto}%</span>
+          <span><i class="z3"></i>&gt;${U.techo} techo · ${z.techo}%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="an-blk">
+      <h4>Splits por km</h4>
+      <div class="an-splits bp">${CORNERS}${splitRows}</div>
+    </div>
+  </div>`;
 }
 
 /* Despliega/pliega cada caja del acordeón */

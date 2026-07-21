@@ -3,6 +3,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import FitParser from 'fit-file-parser';
+import { analizarFit } from './fit-analisis.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -84,6 +86,24 @@ app.post('/api/sesiones', auth, (req, res) => {
   filas.sort((a, b) => a.date.localeCompare(b.date));
   escribir(filas);
   res.json(s);
+});
+
+/* Análisis de un .fit: se parsea al vuelo y se devuelve el desglose.
+   NO se guarda nada — es solo lectura, no toca sesiones.json. */
+app.post('/api/analizar-fit', auth, express.raw({ type: '*/*', limit: '12mb' }), (req, res) => {
+  const buf = req.body;
+  if (!buf || !buf.length) return res.status(400).json({ error: 'Fichero vacío' });
+  const fp = new (FitParser.default || FitParser)({
+    force: true, speedUnit: 'km/h', lengthUnit: 'km', mode: 'list'
+  });
+  fp.parse(buf, (err, data) => {
+    if (err) return res.status(400).json({ error: 'No pude leer el .fit' });
+    try {
+      res.json(analizarFit(data.records || []));
+    } catch {
+      res.status(400).json({ error: 'El fichero no tiene datos de carrera' });
+    }
+  });
 });
 
 app.delete('/api/sesiones/:date', auth, (req, res) => {

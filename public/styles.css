@@ -210,6 +210,75 @@ button{font-family:inherit;cursor:pointer}
 .ok .sq{width:8px;height:8px;background:var(--accent)}
 .ok b{font-family:var(--hd);font-weight:600;font-size:12px;letter-spacing:.1em}
 
+/* ---------- Análisis del .fit ---------- */
+.fit-area{margin-top:16px}
+.fit-btn{width:100%;background:none;color:var(--accent700);border:1px dashed var(--accent);height:44px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--hd);font-weight:600;font-size:13px;letter-spacing:.08em}
+.fit-btn:active{background:var(--accent100)}
+.fit-btn .fit-ic{font-size:15px}
+.fit-load{font-size:12px;color:var(--muted);text-align:center;padding:16px 0;letter-spacing:.02em}
+.an{margin-top:16px;display:flex;flex-direction:column;gap:18px}
+
+.an-card{background:var(--ink);color:var(--bg);padding:14px 16px 16px}
+.an-card .c{color:rgba(242,242,243,.5)}
+.an-lab{font-family:var(--hd);font-weight:600;font-size:10px;letter-spacing:.14em;color:var(--accent400);margin-bottom:12px}
+.an-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 10px}
+.an-cell .v{font-family:var(--hd);font-weight:600;font-size:23px;line-height:1}
+.an-cell .v small{font-size:13px;color:var(--accent400)}
+.an-cell .k{font-family:var(--hd);font-weight:600;font-size:9px;letter-spacing:.09em;color:rgba(242,242,243,.55);margin-top:4px}
+
+.an-blk h4{font-size:17px;margin:0 0 2px}
+.an-hint{font-size:11.5px;line-height:1.45;color:var(--muted);margin:0 0 10px}
+
+.an-save-row{display:flex;flex-direction:column;gap:8px}
+.an-save{height:46px;font-size:14px}
+.an-save:disabled{opacity:.5}
+.an-save-hint{font-size:11px;line-height:1.4;color:var(--muted);margin:0;text-align:center}
+
+.an-deriva{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;padding:14px 16px}
+.an-half{text-align:center}
+.an-half .hl{display:block;font-family:var(--hd);font-weight:600;font-size:9px;letter-spacing:.1em;color:var(--muted3)}
+.an-half b{font-family:var(--hd);font-weight:600;font-size:30px;line-height:1.1;color:var(--ink)}
+.an-half small{display:block;font-size:11px;color:var(--muted)}
+.an-arrow{font-family:var(--hd);font-weight:600;font-size:20px;color:var(--accent)}
+.an-pct{grid-column:1/-1;margin-top:12px;padding-top:12px;border-top:1px solid var(--divider);
+  display:flex;align-items:baseline;gap:10px}
+.an-pct .p{font-family:var(--hd);font-weight:600;font-size:22px;color:var(--accent700)}
+.an-pct .t{font-size:12px;color:var(--muted3)}
+.an-deriva.ok .an-pct .p{color:var(--accent700)}
+.an-deriva.warn{border-left:3px solid var(--accent);background:var(--accent100)}
+.an-deriva.hi{border-left:3px solid var(--ink)}
+.an-deriva.hi .an-pct .p{color:var(--ink)}
+
+.an-bar{padding:14px 16px}
+.an-track{display:flex;height:16px;gap:2px;overflow:hidden}
+.an-seg{min-width:2px}
+.an-seg.z0{background:var(--n300)}
+.an-seg.z1{background:var(--accent)}
+.an-seg.z2{background:var(--accent700)}
+.an-seg.z3{background:var(--ink)}
+.an-leg{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:12px;
+  font-family:var(--hd);font-weight:600;font-size:10px;letter-spacing:.03em;color:var(--muted3)}
+.an-leg span{display:flex;align-items:center;gap:5px}
+.an-leg i{width:10px;height:10px;flex:0 0 auto}
+.an-leg i.z0{background:var(--n300)}
+.an-leg i.z1{background:var(--accent)}
+.an-leg i.z2{background:var(--accent700)}
+.an-leg i.z3{background:var(--ink)}
+
+.an-splits{padding:2px 16px}
+.an-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  padding:9px 0;border-bottom:1px solid var(--divider)}
+.an-row:last-child{border-bottom:0}
+.an-km{font-family:var(--hd);font-weight:600;font-size:12px;letter-spacing:.04em;color:var(--muted3);width:52px;flex:0 0 auto}
+.an-pace{font-family:var(--hd);font-weight:600;font-size:17px;color:var(--ink);flex:1;text-align:right}
+.an-pace small{font-size:11px;color:var(--muted2);font-weight:600;margin-left:2px}
+.an-hr{font-family:var(--hd);font-weight:600;font-size:17px;color:var(--accent700);width:64px;flex:0 0 auto;text-align:right}
+.an-hr small{font-size:10px;color:var(--muted2);margin-left:2px}
+.an-row.techo .an-hr{color:var(--ink)}
+.an-row.techo .an-km::after{content:" ▲";color:var(--ink);font-size:9px}
+
 /* Descanso — pantalla en calma */
 .rest{justify-content:flex-start}
 .rest-center{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
