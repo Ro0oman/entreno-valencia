@@ -638,6 +638,8 @@ function pintarProg() {
       <text x="${pts[0][0]}" y="${pts[0][1] - 9}" fill="#5d5d60" font-family="Barlow Condensed" font-weight="600" font-size="12" text-anchor="middle">${aRitmo(aero[0].pace)}</text>
       <text x="${pts[n - 1][0]}" y="${pts[n - 1][1] - 9}" fill="#1d2d3d" font-family="Barlow Condensed" font-weight="600" font-size="13" text-anchor="middle">${aRitmo(aero.at(-1).pace)}</text>
     </svg>`;
+  } else if (aero.length === 1) {
+    curva = `<div class="empty">Primer dato: <b>${aRitmo(aero[0].pace)}/km</b> a ${aero[0].hr} ppm.<br>Con la próxima sesión a 148–162 ppm arranca la curva.</div>`;
   } else {
     curva = `<div class="empty">Aún no hay sesiones a 148–162 ppm.<br>Registra un rodaje y esta curva empieza a existir.</div>`;
   }
