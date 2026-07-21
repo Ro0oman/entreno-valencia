@@ -33,16 +33,49 @@ const escribir = (filas) => {
   fs.renameSync(tmp, DB); // atómico: o está entero o no está
 };
 
-/* ---------- Auth: un PIN, un token HMAC. Sin dependencias. ---------- */
-const token = () => crypto.createHmac('sha256', SECRET).update(PIN).digest('hex');
-const TOKEN = token();
+/* ---------- Auth: token firmado (HMAC) con caducidad ----------
+   token = base64url({iat}) + "." + HMAC. Caduca a los 30 días, y rotar
+   SESSION_SECRET invalida todos los tokens emitidos ("cerrar sesión en todos"). */
+const MAX_AGE = 30 * 24 * 3600 * 1000;
+const firmar = (payload) => {
+  const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const mac = crypto.createHmac('sha256', SECRET).update(data).digest('base64url');
+  return `${data}.${mac}`;
+};
+const emitirToken = () => firmar({ iat: Date.now() });
+const verificar = (tok) => {
+  const [data, mac] = String(tok || '').split('.');
+  if (!data || !mac) return false;
+  const esperado = crypto.createHmac('sha256', SECRET).update(data).digest('base64url');
+  const a = Buffer.from(mac), b = Buffer.from(esperado);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+  try {
+    const p = JSON.parse(Buffer.from(data, 'base64url').toString());
+    return typeof p.iat === 'number' && Date.now() - p.iat < MAX_AGE;
+  } catch { return false; }
+};
 
 const auth = (req, res, next) => {
-  const enviado = (req.headers.authorization || '').replace('Bearer ', '');
-  const a = Buffer.from(enviado.padEnd(64).slice(0, 64));
-  const b = Buffer.from(TOKEN.padEnd(64).slice(0, 64));
-  if (crypto.timingSafeEqual(a, b)) return next();
+  const tok = (req.headers.authorization || '').replace('Bearer ', '');
+  if (verificar(tok)) return next();
   res.status(401).json({ error: 'No autorizado' });
+};
+
+/* ---------- Anti fuerza bruta en el login: ventana deslizante por IP ---------- */
+const INTENTOS = new Map(); // ip -> { n, hasta }
+const MAX_INTENTOS = 8, VENTANA = 15 * 60 * 1000;
+setInterval(() => { const t = Date.now(); for (const [ip, v] of INTENTOS) if (v.hasta < t) INTENTOS.delete(ip); }, 60 * 1000).unref();
+const limitarLogin = (req, res, next) => {
+  const v = INTENTOS.get(req.ip);
+  if (v && v.n >= MAX_INTENTOS && v.hasta > Date.now()) {
+    return res.status(429).json({ error: `Demasiados intentos. Espera ${Math.ceil((v.hasta - Date.now()) / 1000)} s.` });
+  }
+  next();
+};
+const registrarFallo = (ip) => {
+  const v = INTENTOS.get(ip) || { n: 0, hasta: 0 };
+  v.n++; v.hasta = Date.now() + VENTANA;
+  INTENTOS.set(ip, v);
 };
 
 /* ---------- Validación ---------- */
@@ -58,11 +91,29 @@ const valida = (s) => {
 
 /* ---------- App ---------- */
 const app = express();
+app.set('trust proxy', 1); // detrás del proxy de Coolify: usa la IP real del cliente
 app.use(express.json({ limit: '32kb' }));
 app.disable('x-powered-by');
 
-app.post('/api/login', (req, res) => {
-  if (req.body?.pin === PIN) return res.json({ token: TOKEN });
+/* Cabeceras de seguridad. CSP estricta: todo del mismo origen (fuentes incluidas,
+   ya self-hosteadas). 'unsafe-inline' en style es por los style="" que genera el JS. */
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+  res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  next();
+});
+
+app.post('/api/login', limitarLogin, async (req, res) => {
+  const pin = req.body?.pin;
+  const ok = typeof pin === 'string' && pin.length === PIN.length &&
+    crypto.timingSafeEqual(Buffer.from(pin), Buffer.from(PIN));
+  await new Promise(r => setTimeout(r, 250)); // demora fija: frena scripts y no filtra por tiempo
+  if (ok) { INTENTOS.delete(req.ip); return res.json({ token: emitirToken() }); }
+  registrarFallo(req.ip);
   res.status(401).json({ error: 'PIN incorrecto' });
 });
 
@@ -102,9 +153,10 @@ app.post('/api/sesiones', auth, (req, res) => {
 
 /* Análisis de un .fit: se parsea al vuelo y se devuelve el desglose.
    NO se guarda nada — es solo lectura, no toca sesiones.json. */
-app.post('/api/analizar-fit', auth, express.raw({ type: '*/*', limit: '12mb' }), (req, res) => {
+app.post('/api/analizar-fit', auth, express.raw({ type: '*/*', limit: '3mb' }), (req, res) => {
   const buf = req.body;
-  if (!buf || !buf.length) return res.status(400).json({ error: 'Fichero vacío' });
+  if (!buf || buf.length < 12) return res.status(400).json({ error: 'Fichero vacío' });
+  if (buf.slice(8, 12).toString('latin1') !== '.FIT') return res.status(400).json({ error: 'No parece un fichero .fit' });
   const fp = new (FitParser.default || FitParser)({
     force: true, speedUnit: 'km/h', lengthUnit: 'km', mode: 'list'
   });

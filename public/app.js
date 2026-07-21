@@ -1,4 +1,4 @@
-import { META, BASE, INICIO_COROS, sesionDe } from './plan.js?v=2';
+import { META, BASE, INICIO_COROS, sesionDe } from './plan.js?v=3';
 
 /* ---------- API ---------- */
 const TK = 'entreno:token';
@@ -175,6 +175,7 @@ function pintarHoy() {
       <div class="reg-sep"></div>
       <div class="reg-cell"><div class="v">${aRitmo(ya.pace)}</div><div class="k">MIN/KM</div></div>
     </div>
+    ${ya.notas ? `<div class="reg-notas">${esc(ya.notas)}</div>` : ''}
   </div>` : '';
 
   const pulso = s.hr ? pulseMeter(s.hr, ya ? ya.hr : null) : '';
@@ -283,14 +284,14 @@ function puntuar(a) {
     // En la larga la deriva y el km mandan; el pulso alto al final se tolera.
     comps = [
       { k: 'Control de pulso', max: 25, pts: 25 * (1 - clamp((techoPct - 20) / 60, 0, 1)), txt: `${techoPct}% sobre 162 (en larga se tolera algo)` },
-      { k: 'Deriva cardíaca', max: 40, pts: pct == null ? 40 : 40 * clamp(1 - (pct - 8) / 12, 0, 1), txt: pct == null ? '—' : `+${pct}% de la 1ª a la 2ª mitad` },
+      { k: 'Desacople aeróbico', max: 40, pts: pct == null ? 40 : 40 * clamp(1 - (pct - 8) / 12, 0, 1), txt: pct == null ? '—' : `+${pct}% de pérdida de eficiencia` },
       { k: 'Cumplimiento', max: 35, pts: 35 * cumpl, txt: cumplTxt }
     ];
   } else {
     // Rodaje fácil (y por defecto): el control del pulso es lo que más pesa.
     comps = [
       { k: 'Control de pulso', max: 50, pts: 50 * (1 - clamp(techoPct / 100, 0, 1)), txt: `${techoPct}% del tiempo sobre el techo 162` },
-      { k: 'Deriva cardíaca', max: 30, pts: pct == null ? 30 : 30 * clamp(1 - (pct - 5) / 10, 0, 1), txt: pct == null ? '—' : `+${pct}% de la 1ª a la 2ª mitad` },
+      { k: 'Desacople aeróbico', max: 30, pts: pct == null ? 30 : 30 * clamp(1 - (pct - 5) / 10, 0, 1), txt: pct == null ? '—' : `+${pct}% de pérdida de eficiencia` },
       { k: 'Cumplimiento', max: 20, pts: 20 * cumpl, txt: cumplTxt }
     ];
   }
@@ -298,7 +299,7 @@ function puntuar(a) {
   const nota = Math.round(comps.reduce((s, c) => s + c.pts, 0));
   const fuga = comps.slice().sort((x, y) => (y.max - y.pts) - (x.max - x.pts))[0];
   const banda = nota >= 85 ? 'Sesión de manual' : nota >= 70 ? 'Sólida' : nota >= 55 ? 'Correcta, con un pero' : 'Para revisar';
-  const motivo = { 'Control de pulso': 'se te fue de pulso', 'Deriva cardíaca': 'el pulso se disparó en la 2ª mitad', 'Cumplimiento': 'faltó volumen' }[fuga.k];
+  const motivo = { 'Control de pulso': 'se te fue de pulso', 'Desacople aeróbico': 'perdiste eficiencia en la 2ª mitad', 'Cumplimiento': 'faltó volumen' }[fuga.k];
   const veredicto = (fuga.max - fuga.pts) < fuga.max * 0.15 ? `${banda}.` : `${banda} — ${motivo}.`;
   return { nota, veredicto, comps: comps.map(c => ({ ...c, pts: Math.round(c.pts) })) };
 }
@@ -308,10 +309,10 @@ function analisisHTML(a) {
   const rit = v => v ? aRitmo(v) : '—';
   const d = a.deriva;
   const dCls = d.pct == null ? '' : d.pct < 5 ? 'ok' : d.pct <= 8 ? 'warn' : 'hi';
-  const dTxt = d.pct == null ? ''
-    : d.pct < 5 ? 'plana — fácil bien llevado'
-    : d.pct <= 8 ? 'moderada — probablemente calor'
-    : 'alta — te fuiste de pulso en la 2ª mitad';
+  const dTxt = d.pct == null ? 'sin datos suficientes'
+    : d.pct < 5 ? 'bajo — aguantaste la eficiencia'
+    : d.pct <= 8 ? 'moderado — vigila calor y fatiga'
+    : 'alto — perdiste eficiencia en la 2ª mitad';
   const z = a.zonas, U = a.umbrales;
   const seg = (w, cls) => w > 0 ? `<div class="an-seg ${cls}" style="flex:${w}" title="${w}%"></div>` : '';
   const splitRows = a.splits.map(s => `<div class="an-row${s.techo ? ' techo' : ''}">
@@ -352,17 +353,17 @@ function analisisHTML(a) {
     <div class="an-save-row">
       <button class="btn-primary an-save" id="bFitSave">GUARDAR COMO SESIÓN · DATOS DEL .FIT</button>
       <p class="an-save-hint">Sustituye lo registrado a mano por lo real del fichero. Fin del doble número.</p>
-      <div id="fitSaveMsg"></div>
+      <div id="fitSaveMsg" aria-live="polite"></div>
     </div>
 
     <div class="an-blk">
-      <h4>Deriva cardíaca</h4>
-      <p class="an-hint">Lo que la media esconde: cuánto sube el pulso de la 1ª a la 2ª mitad. Menos del 5% es un fácil bien llevado.</p>
+      <h4>Desacople aeróbico</h4>
+      <p class="an-hint">Compara la eficiencia (ritmo por pulsación) de la 1ª vs la 2ª mitad, descartando el calentamiento. Menos del 5% = mantuviste el motor.</p>
       <div class="an-deriva bp ${dCls}">${CORNERS}
-        <div class="an-half"><span class="hl">1ª MITAD</span><b>${d.hr1}</b><small>ppm · ${rit(d.pace1)}</small></div>
+        <div class="an-half"><span class="hl">1ª MITAD</span><b>${d.hr1 ?? '—'}</b><small>ppm · ${rit(d.pace1)}</small></div>
         <div class="an-arrow">→</div>
-        <div class="an-half"><span class="hl">2ª MITAD</span><b>${d.hr2}</b><small>ppm · ${rit(d.pace2)}</small></div>
-        <div class="an-pct"><span class="p">${d.pct > 0 ? '+' : ''}${d.pct}%</span><span class="t">${dTxt}</span></div>
+        <div class="an-half"><span class="hl">2ª MITAD</span><b>${d.hr2 ?? '—'}</b><small>ppm · ${rit(d.pace2)}</small></div>
+        <div class="an-pct"><span class="p">${d.pct == null ? '—' : (d.pct > 0 ? '+' : '') + d.pct + '%'}</span><span class="t">${dTxt}</span></div>
       </div>
     </div>
 
@@ -387,13 +388,17 @@ function analisisHTML(a) {
   </div>`;
 }
 
-/* Despliega/pliega cada caja del acordeón */
+/* Despliega/pliega cada caja del acordeón. La altura se mide en vivo
+   (scrollHeight) en vez de un tope fijo, así ninguna lista se recorta. */
 function wireAcordeon() {
+  document.querySelectorAll('.acc-item.open > .acc-body').forEach(b => { b.style.maxHeight = b.scrollHeight + 'px'; });
   document.querySelectorAll('.acc-head').forEach(h => {
     h.onclick = () => {
       const item = h.closest('.acc-item');
+      const body = item.querySelector('.acc-body');
       const open = item.classList.toggle('open');
       h.setAttribute('aria-expanded', open);
+      body.style.maxHeight = open ? body.scrollHeight + 'px' : '0px';
     };
   });
 }
@@ -401,13 +406,15 @@ function wireAcordeon() {
 function regForm(s, ya, hidden) {
   const ph = typeof s.km === 'number' ? s.km : '—';
   return `<div class="regform" id="regForm" ${hidden ? 'hidden' : ''}>
-    <div class="field"><label>km</label>
+    <div class="field"><label for="iKm">km</label>
       <input id="iKm" class="input" inputmode="decimal" value="${ya ? String(ya.km).replace('.', ',') : ''}" placeholder="${ph}"></div>
-    <div class="field"><label>FC media · ppm</label>
+    <div class="field"><label for="iHr">FC media · ppm</label>
       <input id="iHr" class="input" inputmode="numeric" value="${ya ? ya.hr : ''}" placeholder="155"></div>
-    <div class="field"><label>Ritmo · min/km</label>
+    <div class="field"><label for="iPace">Ritmo · min/km</label>
       <input id="iPace" class="input" inputmode="text" value="${ya ? aRitmo(ya.pace) : ''}" placeholder="6:45"></div>
-    <div id="regmsg"></div>
+    <div class="field"><label for="iNotas">Notas · opcional</label>
+      <textarea id="iNotas" class="input" rows="2" placeholder="p. ej. acorté por tiempo">${ya && ya.notas ? esc(ya.notas) : ''}</textarea></div>
+    <div id="regmsg" aria-live="polite"></div>
     <button class="btn-primary" id="bSave">GUARDAR SESIÓN</button>
   </div>`;
 }
@@ -427,13 +434,14 @@ function wireRegistro(s, ya) {
     const km = parseFloat(($('iKm').value || '').replace(',', '.'));
     const hr = parseInt($('iHr').value, 10);
     const pace = aSeg($('iPace').value);
+    const notas = ($('iNotas')?.value || '').trim();
     if (!km || !hr || !pace) {
       msg.innerHTML = `<div class="err"><span class="bang">!</span><p>Faltan km, FC media o ritmo (formato 6:45).</p></div>`;
       return;
     }
     b.disabled = true;
     try {
-      const guardada = await api('/sesiones', { method: 'POST', body: JSON.stringify({ date: hoy(), km, hr, pace }) });
+      const guardada = await api('/sesiones', { method: 'POST', body: JSON.stringify({ date: hoy(), km, hr, pace, notas }) });
       LOGS = LOGS.filter(l => l.date !== guardada.date).concat(guardada).sort((a, b) => a.date.localeCompare(b.date));
       msg.innerHTML = `<div class="ok"><span class="sq"></span><b>GUARDADO.</b></div>`;
       setTimeout(pintarHoy, 650);
@@ -547,7 +555,7 @@ function probabilidad(logs, corteISO) {
     comps: [
       { k: 'Durabilidad · volumen y larga', v: vol },
       { k: 'Motor aeróbico · ritmo a pulso', v: motor },
-      { k: 'Eficiencia · deriva', v: efic },
+      { k: 'Eficiencia · desacople', v: efic },
       { k: 'Constancia · plan cumplido', v: constancia }
     ]
   };
@@ -633,6 +641,21 @@ function pintarProg() {
     </div>`;
   }).join('');
 
+  /* Carga aguda:crónica (ACWR): km de 7 días ÷ media semanal de 28 días.
+     Zona segura 0,8-1,3; por encima de 1,5 es donde llegan las lesiones.
+     Sin ~3 semanas de base crónica el ratio no significa nada: se oculta. */
+  const km7 = LOGS.filter(l => l.date > mas(hoy(), -7)).reduce((a, l) => a + l.km, 0);
+  const ventana = LOGS.filter(l => l.date > mas(hoy(), -28) && l.date <= hoy());
+  const cronico = ventana.reduce((a, l) => a + l.km, 0) / 4;
+  const spanDias = ventana.length ? Math.round((new Date(hoy()) - new Date(ventana.reduce((m, l) => l.date < m ? l.date : m, ventana[0].date))) / 864e5) : 0;
+  const acwr = (spanDias >= 21 && cronico > 0) ? km7 / cronico : null;
+  const acwrCls = acwr == null ? '' : (acwr >= 0.8 && acwr <= 1.3) ? 'ok' : acwr > 1.5 ? 'hi' : 'warn';
+  const acwrTxt = acwr == null ? 'Necesita un par de semanas de datos para tener sentido.'
+    : acwr > 1.5 ? 'Pico de carga alto: riesgo para el Aquiles. Toca frenar.'
+    : acwr > 1.3 ? 'Subiendo rápido: ojo con el salto semanal.'
+    : acwr < 0.8 ? 'Carga baja respecto a tu media: hay margen para construir.'
+    : 'En zona segura: la carga sube de forma sostenible.';
+
   $('vProg').innerHTML = `<div class="prog">
     <h2>Progreso</h2>
     <p class="tagline">Camino al sub-4h · 5:41/km</p>
@@ -645,7 +668,7 @@ function pintarProg() {
       <div class="stat"><div class="v">${semanas}</div><div class="k">semanas restantes</div></div>
       <div class="stat"><div class="v">${ritmoAct}${ritmoAct !== '—' ? '<small>/km</small>' : ''}</div><div class="k">último ritmo a 148–162</div></div>
       <div class="stat"><div class="v">${totalKm}</div><div class="k">km registrados</div></div>
-      <div class="stat"><div class="v">${ultDeriva}</div><div class="k">última deriva cardíaca</div></div>
+      <div class="stat"><div class="v">${ultDeriva}</div><div class="k">último desacople</div></div>
       <div class="stat"><div class="v">${ultCad}${ultCad !== '—' ? '<small>spm</small>' : ''}</div><div class="k">última cadencia</div></div>
       <div class="stat dark"><div class="v">3:56</div><div class="k">lo que predice tu 10K</div></div>
     </div>
@@ -656,7 +679,7 @@ function pintarProg() {
       <div class="chart bp">${CORNERS}${curva}</div>
     </div>
 
-    ${trendBlock('Deriva cardíaca', 'Cuánto se te sube el pulso de la 1ª a la 2ª mitad. <b>Baja = tu base aeróbica mejora</b> (es tu déficit). Objetivo: por debajo del 5%.', derivas, v => `${v}%`, 5)}
+    ${trendBlock('Desacople aeróbico', 'Pérdida de eficiencia (ritmo:FC) de la 1ª a la 2ª mitad. <b>Baja = tu base aeróbica mejora</b> (es tu déficit). Objetivo: por debajo del 5%.', derivas, v => `${v}%`, 5)}
 
     ${trendBlock('Control de los fáciles', '% del rodaje por encima del techo 162. <b>Baja = gestionas mejor el pulso</b> en los fáciles. Cuanto más cerca de 0, mejor.', controls, v => `${v}%`, 10)}
 
@@ -672,6 +695,15 @@ function pintarProg() {
           <span><i style="background:var(--ink)"></i>PASADO DE ROSCA</span>
           <span><i style="border:1px dashed var(--accent)"></i>META S5: 42 KM</span>
         </div>
+      </div>
+    </div>
+
+    <div class="pgrp">
+      <h4>Carga y riesgo · ACWR</h4>
+      <p class="hint">Km de los últimos 7 días ÷ tu media semanal de 4 semanas. Zona segura <b>0,8–1,3</b>; por encima de <b>1,5</b> es donde llegan las lesiones. Tu red anti-Aquiles.</p>
+      <div class="acwr bp ${acwrCls}">${CORNERS}
+        <div class="acwr-n">${acwr == null ? '—' : acwr.toFixed(2).replace('.', ',')}</div>
+        <div class="acwr-t">${acwrTxt}</div>
       </div>
     </div>
 
@@ -801,10 +833,10 @@ async function entrar() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin: pinBuf })
     });
-    if (!r.ok) throw new Error('PIN incorrecto');
-    const { token: t } = await r.json();
-    localStorage.setItem(TK, t);
-    token = t;
+    const cuerpo = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(cuerpo.error || 'PIN incorrecto'); // muestra "Espera Xs" del 429
+    localStorage.setItem(TK, cuerpo.token);
+    token = cuerpo.token;
     await arrancar();
   } catch (e) {
     msg.textContent = e.message;
@@ -818,11 +850,27 @@ async function arrancar() {
   if (!token) return puerta();
   try {
     LOGS = await api('/sesiones');
-  } catch { return; }
+  } catch {
+    if (!token) return;        // era 401: api() ya mostró la puerta
+    return mostrarError();     // 500 / red caída: pantalla de error con reintento, no en blanco
+  }
   $('puerta').hidden = true;
   $('app').hidden = false;
   $('dleft').textContent = diasRestantes();
   ir('hoy');
+}
+
+/* Pantalla de error de carga con botón de reintento (antes: pantalla en blanco) */
+function mostrarError() {
+  $('puerta').hidden = true;
+  $('app').hidden = false;
+  $('vSemana').hidden = true; $('vProg').hidden = true; $('vHoy').hidden = false;
+  $('vHoy').innerHTML = `<div class="hoy"><div class="loaderr bp">${CORNERS}
+    <div class="le-t">NO SE PUDO CARGAR</div>
+    <p>Falló la conexión con el servidor. Revisa la red e inténtalo de nuevo.</p>
+    <button class="btn-primary" id="bRetry">REINTENTAR</button>
+  </div></div>`;
+  $('bRetry').onclick = arrancar;
 }
 
 /* Reloj de la puerta */

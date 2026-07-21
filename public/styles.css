@@ -2,13 +2,23 @@
    BLUEPRINT — dirección "el pulso es el instrumento".
    Tema claro técnico · Barlow Condensed · un solo azul acero.
    ============================================================ */
+
+/* Fuentes self-hosteadas (subset latino). Sin llamada a Google: más rápido
+   y sin enviar la IP del usuario a terceros (RGPD). */
+@font-face{font-family:'Barlow';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/barlow-400.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/barlow-500.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/barlow-600.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-style:normal;font-weight:700;font-display:swap;src:url(fonts/barlow-700.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/barlowcondensed-400.woff2) format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/barlowcondensed-600.woff2) format('woff2')}
+
 :root{
   --bg:#f2f2f3;
   --surface:#e9e9ea;
   --text:#1d1f20;
-  --muted:#7a7a7d;
-  --muted2:#98989b;
-  --muted3:#5d5d60;
+  --muted:#5f5f63;    /* AA (~5.7:1 sobre --bg): antes 7a7a7d fallaba */
+  --muted2:#6b6b6f;   /* AA (~4.8:1): antes 98989b daba ~2.3:1 */
+  --muted3:#54545a;
   --divider:rgba(29,31,32,.16);
   --accent:#5980a6;
   --accent700:#416180;
@@ -76,7 +86,8 @@ button{font-family:inherit;cursor:pointer}
    ============================================================ */
 #app{position:relative;display:flex;flex-direction:column;height:100dvh;max-width:440px;margin:0 auto;
   background:var(--bg);overflow:hidden;border-left:1px solid var(--divider);border-right:1px solid var(--divider)}
-.view{position:relative;z-index:1;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.views{position:relative;z-index:1;flex:1;min-height:0;display:flex}
+.view{flex:1;min-width:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 
 .appbar{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:16px 22px 0}
 .brandmark{display:flex;align-items:center;gap:8px;color:var(--accent700)}
@@ -129,7 +140,7 @@ button{font-family:inherit;cursor:pointer}
 .track .ceil{position:absolute;top:-4px;width:2px;height:34px;background:var(--ink)}
 .track .ceil-lbl{position:absolute;top:-15px;transform:translateX(-50%);font-family:var(--hd);font-weight:600;font-size:8px;letter-spacing:.08em;color:var(--ink);white-space:nowrap}
 .track .dot{position:absolute;top:2px;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:var(--ink);border:2px solid var(--bg);box-shadow:0 0 0 1px var(--ink)}
-.scale{position:relative;height:14px;margin-top:2px;font-family:var(--hd);font-weight:600;font-size:9px;color:var(--muted2)}
+.scale{position:relative;height:14px;margin-top:2px;font-family:var(--hd);font-weight:600;font-size:10px;color:var(--muted2)}
 .scale span{position:absolute;transform:translateX(-50%)}
 
 /* Sin pulso (fuerza) */
@@ -151,14 +162,14 @@ button{font-family:inherit;cursor:pointer}
 .acc-st{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .acc-count{font-family:var(--hd);font-weight:600;font-size:10px;letter-spacing:.1em;color:var(--muted2);flex:0 0 auto}
 .acc-body{max-height:0;overflow:hidden;transition:max-height .22s ease}
-.acc-item.open .acc-body{max-height:600px}
+/* la altura de apertura la fija el JS con scrollHeight; nada de tope fijo que recorte */
 .acc-ex{padding:10px 14px;border-top:1px solid var(--divider)}
 .acc-ex-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .acc-ex-n{font-size:13.5px;font-weight:500;color:var(--text)}
 .acc-ex-d{font-family:var(--hd);font-weight:600;font-size:16px;color:var(--accent700);white-space:nowrap;flex:0 0 auto}
-.acc-ex-v{display:inline-grid;place-items:center;width:18px;height:18px;margin-left:6px;
-  border:1px solid var(--divider);color:var(--accent);text-decoration:none;font-size:9px;
-  vertical-align:middle;transform:translateY(-1px)}
+.acc-ex-v{display:inline-grid;place-items:center;width:30px;height:30px;margin:-6px 0 -6px 6px;
+  border:1px solid var(--divider);color:var(--accent);text-decoration:none;font-size:11px;
+  vertical-align:middle}
 .acc-ex-v:active{background:var(--surface)}
 .acc-ex-note{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.4}
 
@@ -194,6 +205,12 @@ button{font-family:inherit;cursor:pointer}
 .reg-cell .v{font-family:var(--hd);font-weight:600;font-size:26px;line-height:1}
 .reg-cell .k{font-family:var(--hd);font-weight:600;font-size:9px;letter-spacing:.1em;color:rgba(242,242,243,.55);margin-top:4px}
 .reg-sep{width:1px;background:rgba(242,242,243,.18)}
+.reg-notas{margin-top:12px;padding-top:11px;border-top:1px solid rgba(242,242,243,.18);
+  font-size:12.5px;line-height:1.4;color:var(--accent100)}
+.regform textarea.input{font-family:var(--bd);font-weight:400;font-size:14px;line-height:1.4;resize:vertical;min-height:48px}
+.loaderr{margin:auto;max-width:30ch;text-align:center;padding:26px 22px;background:var(--bg)}
+.loaderr .le-t{font-family:var(--hd);font-weight:600;font-size:15px;letter-spacing:.1em;color:var(--ink);margin-bottom:8px}
+.loaderr p{font-size:13px;color:var(--muted3);line-height:1.5;margin:0 0 18px}
 .regform{margin-top:14px;display:flex;flex-direction:column;gap:14px}
 .field label{display:block;font-family:var(--hd);font-weight:600;font-size:11px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--muted3);margin-bottom:5px}
@@ -274,7 +291,7 @@ button{font-family:inherit;cursor:pointer}
 .an-seg.z0{background:var(--n300)}
 .an-seg.z1{background:var(--accent)}
 .an-seg.z2{background:var(--accent700)}
-.an-seg.z3{background:var(--ink)}
+.an-seg.z3{background:var(--ink);background-image:repeating-linear-gradient(45deg,transparent 0 3px,rgba(242,242,243,.28) 3px 5px)}
 .an-leg{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:12px;
   font-family:var(--hd);font-weight:600;font-size:10px;letter-spacing:.03em;color:var(--muted3)}
 .an-leg span{display:flex;align-items:center;gap:5px}
@@ -282,7 +299,7 @@ button{font-family:inherit;cursor:pointer}
 .an-leg i.z0{background:var(--n300)}
 .an-leg i.z1{background:var(--accent)}
 .an-leg i.z2{background:var(--accent700)}
-.an-leg i.z3{background:var(--ink)}
+.an-leg i.z3{background:var(--ink);background-image:repeating-linear-gradient(45deg,transparent 0 2px,rgba(242,242,243,.35) 2px 4px)}
 
 .an-splits{padding:2px 16px}
 .an-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
@@ -386,6 +403,15 @@ button{font-family:inherit;cursor:pointer}
 .road .item.last .d{color:var(--ink)}
 .road .item p{margin:2px 0 0;font-size:12.5px;line-height:1.45}
 .road .item.last p{font-weight:600}
+/* Carga y riesgo (ACWR) */
+.acwr{display:flex;align-items:center;gap:14px;padding:14px 16px;border-left:3px solid var(--muted3)}
+.acwr-n{font-family:var(--hd);font-weight:600;font-size:34px;line-height:1;color:var(--ink);flex:0 0 auto}
+.acwr-t{font-size:12.5px;line-height:1.4;color:var(--muted3)}
+.acwr.ok{border-left-color:var(--accent);background:var(--accent100)}
+.acwr.warn{border-left-color:var(--accent700)}
+.acwr.hi{border-left-color:var(--ink);background:#f5f5f8}
+.acwr.hi .acwr-n{color:var(--ink)}
+
 .summary{background:var(--ink);color:var(--accent100);padding:15px 16px;margin:20px 0}
 .summary .c{color:rgba(242,242,243,.5)}
 .summary p{margin:0;font-size:12.5px;line-height:1.5}
