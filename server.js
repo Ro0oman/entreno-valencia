@@ -71,15 +71,27 @@ app.get('/api/sesiones', auth, (_req, res) => {
 });
 
 app.post('/api/sesiones', auth, (req, res) => {
+  const b = req.body || {};
   const s = {
-    date: req.body?.date,
-    km: Number(req.body?.km),
-    hr: Number(req.body?.hr),
-    pace: Number(req.body?.pace),
-    notas: String(req.body?.notas || '').slice(0, 500)
+    date: b.date,
+    km: Number(b.km),
+    hr: Number(b.hr),
+    pace: Number(b.pace),
+    notas: String(b.notas || '').slice(0, 500)
   };
   const errores = valida(s);
   if (errores.length) return res.status(400).json({ error: `Revisa: ${errores.join(', ')}` });
+
+  // Métricas ricas del .fit — opcionales. Se guardan solo si vienen y son válidas.
+  // Los registros a mano no las traen y no pasa nada: los gráficos las saltan.
+  const num = (v, lo, hi) => { const n = Number(v); return Number.isFinite(n) && n >= lo && n <= hi ? n : undefined; };
+  const extra = {
+    deriva: num(b.deriva, -20, 60),   // % de deriva cardíaca
+    cad: num(b.cad, 100, 260),        // cadencia media (spm)
+    hrMax: num(b.hrMax, 80, 220),     // FC máxima
+    techoPct: num(b.techoPct, 0, 100) // % del tiempo por encima del techo
+  };
+  for (const [k, v] of Object.entries(extra)) if (v !== undefined) s[k] = v;
 
   const filas = leer().filter(f => f.date !== s.date); // una sesión por día, se sobreescribe
   filas.push(s);

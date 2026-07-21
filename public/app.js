@@ -250,7 +250,10 @@ function wireFitSave(a) {
     try {
       const guardada = await api('/sesiones', {
         method: 'POST',
-        body: JSON.stringify({ date: a.fecha, km: a.km, hr: a.hrAvg, pace: a.paceAvg })
+        body: JSON.stringify({
+          date: a.fecha, km: a.km, hr: a.hrAvg, pace: a.paceAvg,
+          deriva: a.deriva?.pct, cad: a.cadAvg, hrMax: a.hrMax, techoPct: a.zonas?.techo
+        })
       });
       LOGS = LOGS.filter(l => l.date !== guardada.date).concat(guardada).sort((x, y) => x.date.localeCompare(y.date));
       msg.innerHTML = `<div class="ok"><span class="sq"></span><b>GUARDADO CON LOS DATOS DEL .FIT.</b></div>`;
@@ -411,12 +414,58 @@ function raceView(s, dias) {
   </div>`;
 }
 
+/* Mini-gráfico de tendencia: polilínea escalada a min/max, con línea de
+   objetivo opcional. `fmt` da formato a las etiquetas de primer y último punto. */
+function trendSVG(vals, fmt, target) {
+  const n = vals.length;
+  const all = target != null ? vals.concat([target]) : vals;
+  const mx = Math.max(...all), mn = Math.min(...all);
+  const rango = Math.max(mx - mn, 1);
+  const X = i => 30 + (i / (n - 1)) * 285;
+  const Y = v => 25 + (1 - (v - mn) / rango) * 95;   // valor alto = arriba
+  const pts = vals.map((v, i) => [Math.round(X(i)), Math.round(Y(v))]);
+  const poly = pts.map(q => q.join(',')).join(' ');
+  const dots = pts.map((q, i) => i === n - 1
+    ? `<circle cx="${q[0]}" cy="${q[1]}" r="5" fill="#1d2d3d"></circle>`
+    : `<circle cx="${q[0]}" cy="${q[1]}" r="4" fill="#f2f2f3" stroke="#5980a6" stroke-width="2"></circle>`).join('');
+  const tgt = target != null ? `<line x1="0" y1="${Math.round(Y(target))}" x2="342" y2="${Math.round(Y(target))}" stroke="#5980a6" stroke-width="1" stroke-dasharray="4 4"></line>
+    <text x="341" y="${Math.round(Y(target)) - 4}" fill="#5980a6" font-family="Barlow Condensed" font-weight="600" font-size="10" text-anchor="end">objetivo ${fmt(target)}</text>` : '';
+  return `<svg viewBox="0 0 342 150">
+    <line x1="0" y1="24" x2="342" y2="24" stroke="#e7e7ea"></line>
+    <line x1="0" y1="72" x2="342" y2="72" stroke="#e7e7ea"></line>
+    <line x1="0" y1="120" x2="342" y2="120" stroke="#e7e7ea"></line>
+    ${tgt}
+    <polyline points="${poly}" fill="none" stroke="#5980a6" stroke-width="2"></polyline>
+    ${dots}
+    <text x="${pts[0][0]}" y="${pts[0][1] - 9}" fill="#5d5d60" font-family="Barlow Condensed" font-weight="600" font-size="12" text-anchor="middle">${fmt(vals[0])}</text>
+    <text x="${pts[n - 1][0]}" y="${pts[n - 1][1] - 9}" fill="#1d2d3d" font-family="Barlow Condensed" font-weight="600" font-size="13" text-anchor="middle">${fmt(vals[n - 1])}</text>
+  </svg>`;
+}
+
+/* Bloque de tendencia: título + hint + gráfico, o estado vacío mientras
+   no haya al menos dos sesiones con ese dato del .fit. */
+function trendBlock(title, hint, vals, fmt, target) {
+  let body;
+  if (vals.length >= 2) body = `<div class="chart bp">${CORNERS}${trendSVG(vals, fmt, target)}</div>`;
+  else if (vals.length === 1) body = `<div class="chart bp">${CORNERS}<div class="empty">Primer dato: <b>${fmt(vals[0])}</b>.<br>Con la próxima sesión del .fit arranca la curva.</div></div>`;
+  else body = `<div class="chart bp">${CORNERS}<div class="empty">Aún sin datos.<br>Sube el .fit de un rodaje y esto cobra vida.</div></div>`;
+  return `<div class="pgrp"><h4>${title}</h4><p class="hint">${hint}</p>${body}</div>`;
+}
+
 /* ---------- Vista PROGRESO ---------- */
 function pintarProg() {
   const semanas = Math.ceil(diasRestantes() / 7);
   const aero = LOGS.filter(l => l.hr >= 148 && l.hr <= 162);
   const ritmoAct = aero.length ? aRitmo(aero.at(-1).pace) : '—';
   const totalKm = Math.round(LOGS.reduce((s, l) => s + l.km, 0));
+
+  /* Datos ricos del .fit — solo las sesiones que se guardaron desde el fichero
+     los tienen. El control de fáciles se limita a rodajes (una larga deriva de por sí). */
+  const derivas = LOGS.filter(l => typeof l.deriva === 'number').map(l => l.deriva);
+  const cads = LOGS.filter(l => typeof l.cad === 'number').map(l => l.cad);
+  const controls = LOGS.filter(l => typeof l.techoPct === 'number' && sesionDe(l.date).kind === 'rodaje').map(l => l.techoPct);
+  const ultDeriva = derivas.length ? `${derivas.at(-1)}%` : '—';
+  const ultCad = cads.length ? `${cads.at(-1)}` : '—';
 
   /* curva de ritmo a pulso aeróbico */
   let curva;
@@ -471,6 +520,8 @@ function pintarProg() {
       <div class="stat"><div class="v">${semanas}</div><div class="k">semanas restantes</div></div>
       <div class="stat"><div class="v">${ritmoAct}${ritmoAct !== '—' ? '<small>/km</small>' : ''}</div><div class="k">último ritmo a 148–162</div></div>
       <div class="stat"><div class="v">${totalKm}</div><div class="k">km registrados</div></div>
+      <div class="stat"><div class="v">${ultDeriva}</div><div class="k">última deriva cardíaca</div></div>
+      <div class="stat"><div class="v">${ultCad}${ultCad !== '—' ? '<small>spm</small>' : ''}</div><div class="k">última cadencia</div></div>
       <div class="stat dark"><div class="v">3:56</div><div class="k">lo que predice tu 10K</div></div>
     </div>
 
@@ -479,6 +530,12 @@ function pintarProg() {
       <p class="hint">La única curva que decide el sub-4h. Mismo pulso, más rápido. Julio a 7:15 es correcto; octubre a 6:25 es la adaptación.</p>
       <div class="chart bp">${CORNERS}${curva}</div>
     </div>
+
+    ${trendBlock('Deriva cardíaca', 'Cuánto se te sube el pulso de la 1ª a la 2ª mitad. <b>Baja = tu base aeróbica mejora</b> (es tu déficit). Objetivo: por debajo del 5%.', derivas, v => `${v}%`, 5)}
+
+    ${trendBlock('Control de los fáciles', '% del rodaje por encima del techo 162. <b>Baja = gestionas mejor el pulso</b> en los fáciles. Cuanto más cerca de 0, mejor.', controls, v => `${v}%`, 10)}
+
+    ${trendBlock('Cadencia', 'Zancadas por minuto. Tu asignatura pendiente (baja para 1,83 m). <b>Sube = mejor economía y menos impacto</b>. Objetivo: hacia 160+.', cads, v => `${v}`, 160)}
 
     <div class="pgrp">
       <h4>Km por semana · fase base</h4>
