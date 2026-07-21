@@ -787,10 +787,10 @@ function pintarSemana() {
     const d = new Date(f + 'T00:00:00');
     const done = LOGS.find(l => l.date === f);
     const cls = ['wk-day', s.kind, f === hoyISO ? 'is-hoy' : '', done ? 'is-done' : ''].filter(Boolean).join(' ');
-    return `<div class="${cls}">
+    return `<div class="${cls}" role="button" tabindex="0" data-f="${f}" aria-label="Ver ${esc(s.t)}">
       <div class="wk-dt"><span class="wk-dn">${DIAS[d.getDay()].slice(0, 3)}</span><span class="wk-num">${d.getDate()}</span></div>
       <div class="wk-main"><div class="wk-t">${esc(s.t)}</div></div>
-      <div class="wk-tag">${done ? '<span class="wk-ok">✓</span>' : ''}${esc(etiquetaDia(s))}</div>
+      <div class="wk-tag">${done ? '<span class="wk-ok">✓</span>' : ''}${esc(etiquetaDia(s))}<span class="wk-chev">›</span></div>
     </div>`;
   }).join('');
 
@@ -812,6 +812,52 @@ function pintarSemana() {
   $('wkPrev').onclick = () => { semOffset--; pintarSemana(); };
   $('wkNext').onclick = () => { semOffset++; pintarSemana(); };
   if ($('wkHoy')) $('wkHoy').onclick = () => { semOffset = 0; pintarSemana(); };
+  document.querySelectorAll('.wk-day[data-f]').forEach(el => {
+    el.onclick = () => verSesion(el.dataset.f);
+    el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); verSesion(el.dataset.f); } };
+  });
+}
+
+/* ---------- Ficha de una sesión (desde SEMANA): abre cualquier día y
+   muestra su resumen + medidor de pulso + análisis del .fit si lo tiene. ---------- */
+function verSesion(f) {
+  const s = sesionDe(f);
+  const log = LOGS.find(l => l.date === f);
+  const d = new Date(f + 'T00:00:00');
+  const cab = `${DIAS[d.getDay()]} · ${d.getDate()} ${MESES[d.getMonth()]}`;
+
+  const resumen = log ? `<div class="reg-done bp">${CORNERS}
+      <div class="reg-head"><span class="lab">SESIÓN REGISTRADA</span></div>
+      <div class="reg-cells">
+        <div class="reg-cell"><div class="v">${String(log.km).replace('.', ',')}</div><div class="k">KM</div></div>
+        <div class="reg-sep"></div>
+        <div class="reg-cell"><div class="v">${log.hr}</div><div class="k">FC MEDIA · PPM</div></div>
+        <div class="reg-sep"></div>
+        <div class="reg-cell"><div class="v">${aRitmo(log.pace)}</div><div class="k">MIN/KM</div></div>
+      </div>
+      ${log.notas ? `<div class="reg-notas">${esc(log.notas)}</div>` : ''}
+    </div>` : '';
+  const pulso = (log && s.hr) ? pulseMeter(s.hr, log.hr) : '';
+  const analisis = log?.analisis ? analisisHTML(log.analisis, false) : '';
+  const sinReg = (!log && s.km) ? `<p class="body">No registraste esta sesión.</p>` : '';
+  const intro = s.sub ? `<p class="body">${esc(s.sub)}</p>` : '';
+  const acc = acordeonHTML(s.grupos, false);
+
+  $('detalle').innerHTML = `<div class="det-head">
+      <button class="det-close" id="detClose" aria-label="Cerrar">✕</button>
+      <span class="kicker">${cab}</span>
+      <h1 class="title">${tituloHTML(s.t)}</h1>
+    </div>
+    <div class="det-body">${resumen}${pulso}${sinReg}${intro}${analisis}${acc}${notasHTML(s.notes)}</div>`;
+  $('detalle').hidden = false;
+  $('detClose').onclick = cerrarDetalle;
+  $('detClose').focus();
+  wireAcordeon();
+}
+
+function cerrarDetalle() {
+  $('detalle').hidden = true;
+  $('detalle').innerHTML = '';
 }
 
 /* ---------- Navegación ---------- */
@@ -922,5 +968,6 @@ $('bEntrar').onclick = entrar;
 $('tHoy').onclick = () => ir('hoy');
 $('tSem').onclick = () => ir('sem');
 $('tProg').onclick = () => ir('prog');
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('detalle').hidden) cerrarDetalle(); });
 
 arrancar();

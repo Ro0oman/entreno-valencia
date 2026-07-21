@@ -452,5 +452,22 @@ button{font-family:inherit;cursor:pointer}
 .wk-day.descanso .wk-t,.wk-day.descanso .wk-num{color:var(--muted2)}
 .wk-day.is-hoy{border-color:var(--accent);background:var(--accent100)}
 .wk-day.is-hoy .wk-num{color:var(--accent800)}
+.wk-day{cursor:pointer}
+.wk-day:active{background:var(--surface)}
+.wk-day:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wk-chev{color:var(--accent);font-family:var(--hd);font-weight:600;font-size:16px;margin-left:2px}
+
+/* ============================================================
+   FICHA DE SESIÓN (overlay desde SEMANA)
+   ============================================================ */
+.detalle{position:absolute;inset:0;z-index:10;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.det-head{position:relative;padding:18px 22px 12px;border-bottom:1px solid var(--divider)}
+.det-head .kicker{display:block}
+.det-head .title{margin:6px 0 0}
+.det-close{position:absolute;top:14px;right:16px;width:36px;height:36px;border:1px solid var(--divider);
+  background:var(--bg);color:var(--muted3);font-size:15px;display:grid;place-items:center}
+.det-close:active{background:var(--surface)}
+.det-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 22px 28px}
+.det-body .acc{margin-top:16px}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
