@@ -144,6 +144,13 @@ app.post('/api/sesiones', auth, (req, res) => {
   };
   for (const [k, v] of Object.entries(extra)) if (v !== undefined) s[k] = v;
 
+  // Análisis completo del .fit (splits, zonas, desacople, GAP…). Se guarda para
+  // poder reabrir la sesión con todo el detalle sin reimportar el fichero.
+  if (b.analisis && typeof b.analisis === 'object' && !Array.isArray(b.analisis)) {
+    const raw = JSON.stringify(b.analisis);
+    if (raw.length <= 24000) { try { s.analisis = JSON.parse(raw); } catch { /* se ignora */ } }
+  }
+
   const filas = leer().filter(f => f.date !== s.date); // una sesión por día, se sobreescribe
   filas.push(s);
   filas.sort((a, b) => a.date.localeCompare(b.date));

@@ -185,11 +185,12 @@ function pintarHoy() {
     ${regForm(s, ya, ya ? true : false)}
   </div>` : '';
 
-  /* Análisis del .fit: solo lectura, no toca lo registrado. Días de correr. */
+  /* Análisis del .fit. Si la sesión ya tiene análisis guardado, se repinta
+     entero sin reimportar; el botón sirve para subir otro fichero. */
   const fitArea = s.km ? `<div class="fit-area">
-    <button class="fit-btn" id="bFit"><span class="fit-ic">⤢</span> ANALIZAR EL .FIT DEL RELOJ</button>
+    <button class="fit-btn" id="bFit"><span class="fit-ic">⤢</span> ${ya?.analisis ? 'ANALIZAR OTRO .FIT' : 'ANALIZAR EL .FIT DEL RELOJ'}</button>
     <input type="file" id="fitInput" accept=".fit" hidden>
-    <div id="fitOut"></div>
+    <div id="fitOut">${ya?.analisis ? analisisHTML(ya.analisis, false) : ''}</div>
   </div>` : '';
 
   $('vHoy').innerHTML = `<div class="hoy">
@@ -253,7 +254,8 @@ function wireFitSave(a) {
         method: 'POST',
         body: JSON.stringify({
           date: a.fecha, km: a.km, hr: a.hrAvg, pace: a.paceAvg,
-          deriva: a.deriva?.pct, cad: a.cadAvg, hrMax: a.hrMax, techoPct: a.zonas?.techo
+          deriva: a.deriva?.pct, cad: a.cadAvg, hrMax: a.hrMax, techoPct: a.zonas?.techo,
+          analisis: a   // se persiste entero para reabrirlo sin reimportar
         })
       });
       LOGS = LOGS.filter(l => l.date !== guardada.date).concat(guardada).sort((x, y) => x.date.localeCompare(y.date));
@@ -304,8 +306,9 @@ function puntuar(a) {
   return { nota, veredicto, comps: comps.map(c => ({ ...c, pts: Math.round(c.pts) })) };
 }
 
-/* Construye el desglose visual a partir del JSON del análisis */
-function analisisHTML(a) {
+/* Construye el desglose visual a partir del JSON del análisis.
+   `guardar`: muestra el botón de guardar (false al repintar lo ya persistido). */
+function analisisHTML(a, guardar = true) {
   const rit = v => v ? aRitmo(v) : '—';
   const d = a.deriva;
   const dCls = d.pct == null ? '' : d.pct < 5 ? 'ok' : d.pct <= 8 ? 'warn' : 'hi';
@@ -315,11 +318,14 @@ function analisisHTML(a) {
     : 'alto — perdiste eficiencia en la 2ª mitad';
   const z = a.zonas, U = a.umbrales;
   const seg = (w, cls) => w > 0 ? `<div class="an-seg ${cls}" style="flex:${w}" title="${w}%"></div>` : '';
-  const splitRows = a.splits.map(s => `<div class="an-row${s.techo ? ' techo' : ''}">
+  const splitRows = a.splits.map(s => {
+    const gapDif = s.gapSec != null && Math.abs(s.gapSec - s.paceSec) >= 3;
+    return `<div class="an-row${s.techo ? ' techo' : ''}">
       <span class="an-km">km ${s.km}</span>
-      <span class="an-pace">${rit(s.paceSec)}<small>/km</small></span>
+      <span class="an-pace">${rit(s.paceSec)}<small>/km</small>${gapDif ? `<span class="an-gap">GAP ${rit(s.gapSec)}</span>` : ''}</span>
       <span class="an-hr">${s.hr ?? '—'}<small>ppm</small></span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const p = puntuar(a);
   const scoreBlock = `<div class="an-score bp">${CORNERS}
@@ -350,11 +356,11 @@ function analisisHTML(a) {
       </div>
     </div>
 
-    <div class="an-save-row">
+    ${guardar ? `<div class="an-save-row">
       <button class="btn-primary an-save" id="bFitSave">GUARDAR COMO SESIÓN · DATOS DEL .FIT</button>
       <p class="an-save-hint">Sustituye lo registrado a mano por lo real del fichero. Fin del doble número.</p>
       <div id="fitSaveMsg" aria-live="polite"></div>
-    </div>
+    </div>` : ''}
 
     <div class="an-blk">
       <h4>Desacople aeróbico</h4>
@@ -383,6 +389,7 @@ function analisisHTML(a) {
 
     <div class="an-blk">
       <h4>Splits por km</h4>
+      ${a.gain >= 10 ? `<p class="an-hint">Desnivel +${a.gain} m · GAP = ritmo equivalente en llano, sin el efecto de las cuestas.</p>` : ''}
       <div class="an-splits bp">${CORNERS}${splitRows}</div>
     </div>
   </div>`;
@@ -576,6 +583,16 @@ function pintarProg() {
   const ultDeriva = derivas.length ? `${derivas.at(-1)}%` : '—';
   const ultCad = cads.length ? `${cads.at(-1)}` : '—';
 
+  /* Coste de pulso del ritmo maratón (5:41): FC estimada para sostenerlo,
+     proyectando por reserva de FC (Karvonen) desde cada rodaje aeróbico.
+     REST 53, FCmáx 206 (perfil). Baja con el tiempo = 5:41 cada vez más asumible. */
+  const REST = 53, FCMAX = 206, MP = 341, spdMP = 1000 / MP;
+  const costes = LOGS.filter(l => l.hr >= 140 && l.hr <= 168 && l.pace > MP).map(l => {
+    const fracHRR = (l.hr - REST) / (FCMAX - REST);
+    const needed = Math.min(fracHRR * (spdMP / (1000 / l.pace)), 1);
+    return Math.round(REST + needed * (FCMAX - REST));
+  });
+
   /* Probabilidad de sub-4: número de cabecera + su evolución semana a semana
      (recalculada con los datos acumulados hasta el final de cada semana). */
   const prob = probabilidad(LOGS);
@@ -684,6 +701,8 @@ function pintarProg() {
     ${trendBlock('Control de los fáciles', '% del rodaje por encima del techo 162. <b>Baja = gestionas mejor el pulso</b> en los fáciles. Cuanto más cerca de 0, mejor.', controls, v => `${v}%`, 10)}
 
     ${trendBlock('Cadencia', 'Zancadas por minuto. Tu asignatura pendiente (baja para 1,83 m). <b>Sube = mejor economía y menos impacto</b>. Objetivo: hacia 160+.', cads, v => `${v}`, 160)}
+
+    ${trendBlock('Coste de pulso del 5:41', 'FC estimada para sostener el ritmo maratón (5:41), proyectada desde tus rodajes. <b>Baja = el 5:41 se vuelve asumible</b>. Objetivo: por debajo de ~172 ppm.', costes, v => `${v}`, 172)}
 
     <div class="pgrp">
       <h4>Km por semana · fase base</h4>

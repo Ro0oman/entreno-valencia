@@ -308,6 +308,7 @@ button{font-family:inherit;cursor:pointer}
 .an-km{font-family:var(--hd);font-weight:600;font-size:12px;letter-spacing:.04em;color:var(--muted3);width:52px;flex:0 0 auto}
 .an-pace{font-family:var(--hd);font-weight:600;font-size:17px;color:var(--ink);flex:1;text-align:right}
 .an-pace small{font-size:11px;color:var(--muted2);font-weight:600;margin-left:2px}
+.an-gap{margin-left:8px;font-size:11px;letter-spacing:.03em;color:var(--accent700)}
 .an-hr{font-family:var(--hd);font-weight:600;font-size:17px;color:var(--accent700);width:64px;flex:0 0 auto;text-align:right}
 .an-hr small{font-size:10px;color:var(--muted2);margin-left:2px}
 .an-row.techo .an-hr{color:var(--ink)}
