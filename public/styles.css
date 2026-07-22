@@ -469,5 +469,17 @@ button{font-family:inherit;cursor:pointer}
 .det-close:active{background:var(--surface)}
 .det-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 22px 28px}
 .det-body .acc{margin-top:16px}
+.det-edit{margin-top:20px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.det-edit-t{font-family:var(--hd);font-weight:600;font-size:11px;letter-spacing:.14em;color:var(--muted3)}
+.det-edit-cur{margin:0;font-size:12px;color:var(--accent800);background:var(--accent100);padding:8px 10px;border-left:3px solid var(--accent)}
+.det-undo{background:none;border:0;color:var(--accent700);text-decoration:underline;text-underline-offset:2px;font-family:var(--bd);font-size:12px}
+.det-edit-row{display:flex;gap:8px}
+.det-edit-row .input{flex:1;min-height:42px}
+.btn-sec{min-height:42px;padding:0 14px;background:var(--bg);border:1px solid var(--accent);color:var(--accent700);
+  font-family:var(--hd);font-weight:600;font-size:13px;letter-spacing:.04em;white-space:nowrap}
+.btn-sec:active{background:var(--accent100)}
+.wk-adj{display:inline-block;margin-top:3px;font-family:var(--hd);font-weight:600;font-size:9px;letter-spacing:.08em;
+  color:var(--accent700);border:1px solid var(--accent);padding:1px 5px}
+.wk-day.descanso .wk-adj{color:var(--muted3);border-color:var(--divider)}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

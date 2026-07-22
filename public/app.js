@@ -20,6 +20,15 @@ async function api(ruta, opts = {}) {
 }
 
 let LOGS = [];
+let AJUSTES = {};   // ajustes del plan por fecha: { "YYYY-MM-DD": {swap:"..."} | {skip:true} }
+
+/* Sesión de un día YA con los ajustes aplicados (intercambios y saltados).
+   Todo lo que pinta el plan debe pasar por aquí, no por sesionDe directo. */
+function sesionEfectiva(f) {
+  const aj = AJUSTES[f];
+  if (aj?.skip) return { kind: 'descanso', t: 'Día saltado', sub: 'Marcaste este día como descanso. No cuenta en el plan.', saltado: true };
+  return sesionDe(aj?.swap || f);
+}
 
 /* ---------- Utilidades ---------- */
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -128,7 +137,7 @@ const QUOTE = 'El ritmo es una consecuencia, no un objetivo.';
 function pintarHoy() {
   const f = hoy();
   const d = new Date(f + 'T00:00:00');
-  const s = sesionDe(f);
+  const s = sesionEfectiva(f);
   const ya = LOGS.find(l => l.date === f);
   const dias = diasRestantes();
   const race = f === '2026-12-06';
@@ -273,7 +282,7 @@ function wireFitSave(a) {
    igual). Devuelve la nota, el desglose por componente y un veredicto. */
 function puntuar(a) {
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
-  const ses = sesionDe(a.fecha);
+  const ses = sesionEfectiva(a.fecha);
   const kind = ses?.kind;
   const plan = typeof ses?.km === 'number' ? ses.km : null;
   const techoPct = a.zonas?.techo ?? 0;
@@ -551,7 +560,7 @@ function probabilidad(logs, corteISO) {
   let prev = 0, hechas = 0;
   for (let i = 0; i < 28; i++) {
     const dISO = mas(corte, -i);
-    if (typeof sesionDe(dISO).km === 'number') { prev++; if (logs.find(l => l.date === dISO)) hechas++; }
+    if (typeof sesionEfectiva(dISO).km === 'number') { prev++; if (logs.find(l => l.date === dISO)) hechas++; }
   }
   const constancia = prev ? clamp(hechas / prev, 0, 1) : 0.85;
 
@@ -579,7 +588,7 @@ function pintarProg() {
      los tienen. El control de fáciles se limita a rodajes (una larga deriva de por sí). */
   const derivas = LOGS.filter(l => typeof l.deriva === 'number').map(l => l.deriva);
   const cads = LOGS.filter(l => typeof l.cad === 'number').map(l => l.cad);
-  const controls = LOGS.filter(l => typeof l.techoPct === 'number' && sesionDe(l.date).kind === 'rodaje').map(l => l.techoPct);
+  const controls = LOGS.filter(l => typeof l.techoPct === 'number' && sesionEfectiva(l.date).kind === 'rodaje').map(l => l.techoPct);
   const ultDeriva = derivas.length ? `${derivas.at(-1)}%` : '—';
   const ultCad = cads.length ? `${cads.at(-1)}` : '—';
 
@@ -783,13 +792,13 @@ function pintarSemana() {
     : `${dLun.getDate()} ${MESES[dLun.getMonth()]} – ${dDom.getDate()} ${MESES[dDom.getMonth()]}`;
 
   const filas = Array.from({ length: 7 }, (_, i) => mas(lunes, i)).map(f => {
-    const s = sesionDe(f);
+    const s = sesionEfectiva(f);
     const d = new Date(f + 'T00:00:00');
     const done = LOGS.find(l => l.date === f);
     const cls = ['wk-day', s.kind, f === hoyISO ? 'is-hoy' : '', done ? 'is-done' : ''].filter(Boolean).join(' ');
     return `<div class="${cls}" role="button" tabindex="0" data-f="${f}" aria-label="Ver ${esc(s.t)}">
       <div class="wk-dt"><span class="wk-dn">${DIAS[d.getDay()].slice(0, 3)}</span><span class="wk-num">${d.getDate()}</span></div>
-      <div class="wk-main"><div class="wk-t">${esc(s.t)}</div></div>
+      <div class="wk-main"><div class="wk-t">${esc(s.t)}</div>${AJUSTES[f]?.swap ? '<span class="wk-adj">↔ movido</span>' : AJUSTES[f]?.skip ? '<span class="wk-adj">saltado</span>' : ''}</div>
       <div class="wk-tag">${done ? '<span class="wk-ok">✓</span>' : ''}${esc(etiquetaDia(s))}<span class="wk-chev">›</span></div>
     </div>`;
   }).join('');
@@ -821,7 +830,7 @@ function pintarSemana() {
 /* ---------- Ficha de una sesión (desde SEMANA): abre cualquier día y
    muestra su resumen + medidor de pulso + análisis del .fit si lo tiene. ---------- */
 function verSesion(f) {
-  const s = sesionDe(f);
+  const s = sesionEfectiva(f);
   const log = LOGS.find(l => l.date === f);
   const d = new Date(f + 'T00:00:00');
   const cab = `${DIAS[d.getDay()]} · ${d.getDate()} ${MESES[d.getMonth()]}`;
@@ -843,16 +852,60 @@ function verSesion(f) {
   const intro = s.sub ? `<p class="body">${esc(s.sub)}</p>` : '';
   const acc = acordeonHTML(s.grupos, false);
 
+  /* --- Editar / Mover: intercambiar con otro día de la semana o saltar --- */
+  const aj = AJUSTES[f];
+  const lunes = lunesDe(f);
+  const opciones = Array.from({ length: 7 }, (_, i) => mas(lunes, i)).filter(g => g !== f).map(g => {
+    const dg = new Date(g + 'T00:00:00');
+    return `<option value="${g}">${DIAS[dg.getDay()].slice(0, 3)} ${dg.getDate()} · ${esc(sesionEfectiva(g).t)}</option>`;
+  }).join('');
+  const estado = aj?.swap ? `Intercambiado con el ${(new Date(aj.swap + 'T00:00:00')).getDate()} ${MESES[(new Date(aj.swap + 'T00:00:00')).getMonth()]}.`
+    : aj?.skip ? 'Marcado como saltado.' : '';
+  const editor = `<div class="det-edit bp">${CORNERS}
+      <div class="det-edit-t">EDITAR / MOVER</div>
+      ${estado ? `<p class="det-edit-cur">${estado} <button class="det-undo" id="detUndo">Deshacer</button></p>` : ''}
+      <div class="det-edit-row">
+        <select class="input" id="detSwapSel" aria-label="Intercambiar con">${opciones}</select>
+        <button class="btn-sec" id="detSwap">Intercambiar</button>
+      </div>
+      <button class="btn-sec" id="detSkip">${aj?.skip ? 'Quitar el saltado' : 'Marcar día como saltado'}</button>
+      <div id="detEditMsg" aria-live="polite"></div>
+    </div>`;
+
   $('detalle').innerHTML = `<div class="det-head">
       <button class="det-close" id="detClose" aria-label="Cerrar">✕</button>
       <span class="kicker">${cab}</span>
       <h1 class="title">${tituloHTML(s.t)}</h1>
     </div>
-    <div class="det-body">${resumen}${pulso}${sinReg}${intro}${analisis}${acc}${notasHTML(s.notes)}</div>`;
+    <div class="det-body">${resumen}${pulso}${sinReg}${intro}${analisis}${acc}${notasHTML(s.notes)}${editor}</div>`;
   $('detalle').hidden = false;
   $('detClose').onclick = cerrarDetalle;
   $('detClose').focus();
   wireAcordeon();
+
+  $('detSwap').onclick = () => opAjuste(f, o => { limpiarFecha(o, f); const g = $('detSwapSel').value; limpiarFecha(o, g); o[f] = { swap: g }; o[g] = { swap: f }; });
+  $('detSkip').onclick = () => opAjuste(f, o => { const era = o[f]?.skip; limpiarFecha(o, f); if (!era) o[f] = { skip: true }; });
+  if ($('detUndo')) $('detUndo').onclick = () => opAjuste(f, o => limpiarFecha(o, f));
+}
+
+/* Quita la implicación de una fecha en los ajustes (y la de su pareja de swap) */
+function limpiarFecha(o, f) {
+  const c = o[f];
+  if (c?.swap) delete o[c.swap];
+  delete o[f];
+}
+
+/* Aplica una mutación al objeto de ajustes, lo guarda y repinta todo */
+async function opAjuste(f, mut) {
+  const o = { ...AJUSTES };
+  mut(o);
+  try {
+    AJUSTES = await api('/ajustes', { method: 'PUT', body: JSON.stringify(o) });
+    pintarHoy(); pintarSemana(); verSesion(f);
+  } catch (e) {
+    const m = $('detEditMsg');
+    if (m) m.innerHTML = `<div class="err"><span class="bang">!</span><p>${esc(e.message)}</p></div>`;
+  }
 }
 
 function cerrarDetalle() {
@@ -916,7 +969,8 @@ async function entrar() {
 async function arrancar() {
   if (!token) return puerta();
   try {
-    LOGS = await api('/sesiones');
+    const [logs, aj] = await Promise.all([api('/sesiones'), api('/ajustes')]);
+    LOGS = logs; AJUSTES = aj || {};
   } catch {
     if (!token) return;        // era 401: api() ya mostró la puerta
     return mostrarError();     // 500 / red caída: pantalla de error con reintento, no en blanco

@@ -33,6 +33,18 @@ const escribir = (filas) => {
   fs.renameSync(tmp, DB); // atómico: o está entero o no está
 };
 
+/* Ajustes del plan por fecha: intercambios de días y días saltados. Se
+   superponen al plan de código sin tocarlo. Forma: { "YYYY-MM-DD": {swap:"YYYY-MM-DD"} | {skip:true} } */
+const DB_AJ = path.join(DATA_DIR, 'ajustes.json');
+if (!fs.existsSync(DB_AJ)) fs.writeFileSync(DB_AJ, '{}');
+const leerAj = () => { try { return JSON.parse(fs.readFileSync(DB_AJ, 'utf8')); } catch { return {}; } };
+const escribirAj = (o) => {
+  const tmp = DB_AJ + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(o, null, 2));
+  fs.renameSync(tmp, DB_AJ);
+};
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
 /* ---------- Auth: token firmado (HMAC) con caducidad ----------
    token = base64url({iat}) + "." + HMAC. Caduca a los 30 días, y rotar
    SESSION_SECRET invalida todos los tokens emitidos ("cerrar sesión en todos"). */
@@ -183,6 +195,26 @@ app.delete('/api/sesiones/:date', auth, (req, res) => {
   if (quedan.length === filas.length) return res.status(404).json({ error: 'No hay sesión ese día' });
   escribir(quedan);
   res.json({ borrada: req.params.date });
+});
+
+/* Ajustes del plan: leer y reemplazar (el cliente manda el objeto entero). */
+app.get('/api/ajustes', auth, (_req, res) => res.json(leerAj()));
+
+app.put('/api/ajustes', auth, (req, res) => {
+  const o = req.body;
+  if (!o || typeof o !== 'object' || Array.isArray(o) || Object.keys(o).length > 400) {
+    return res.status(400).json({ error: 'Ajustes inválidos' });
+  }
+  const limpio = {};
+  for (const k of Object.keys(o)) {
+    if (!ISO.test(k)) return res.status(400).json({ error: 'Fecha inválida' });
+    const v = o[k], e = {};
+    if (v && v.skip === true) e.skip = true;
+    if (v && typeof v.swap === 'string' && ISO.test(v.swap)) e.swap = v.swap;
+    if (Object.keys(e).length) limpio[k] = e;
+  }
+  escribirAj(limpio);
+  res.json(limpio);
 });
 
 app.get('/salud', (_req, res) => res.json({ ok: true, sesiones: leer().length }));
