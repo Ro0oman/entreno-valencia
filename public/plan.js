@@ -242,6 +242,10 @@ export const COROS = {
    },
    ============================================================ */
 export const AJUSTES = {
+  // Sábado 25: Roman se acuesta muy tarde esa noche → la tirada larga (sagrada)
+  // se adelanta al sábado con piernas frescas y el parque de barras pasa al domingo.
+  '2026-07-25': { ...PLAN['2026-07-26'], motivo: 'Noche larga del sábado 25: la tirada larga se adelanta al sábado (fresco)' },
+  '2026-07-26': { ...PLAN['2026-07-25'], motivo: 'Noche larga del sábado 25: el parque de barras pasa al domingo' }
 };
 
 export function sesionDe(fecha) {
