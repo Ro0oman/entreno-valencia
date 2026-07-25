@@ -9,6 +9,7 @@ export const INICIO_COROS = new Date('2026-08-17T00:00:00');
 /* Los saltos de impacto (cajón, A-skips) van al parque, sobre césped (ver parque()).
    En casa solo pogos en el sitio, dentro de Fuerza B: bajo impacto, cualquier suelo vale. */
 const REGLA_PLIO = ['Solo sobre césped, tierra o pista. Nunca asfalto. Al primer aviso del Aquiles, se acabó.', 'warn'];
+// APARCADO: se usaba en la Fuerza B, ahora retirada. Se conserva por si vuelve.
 const NOTA_HOMBRO = ['Press hombro: agarre neutro, RPE 6-7, sin bloquear arriba.', 'warn'];
 
 /* Pliometría del PARQUE: el sitio para saltar. En casa el suelo no acompaña;
@@ -61,9 +62,10 @@ function fuerzaA(kg) {
   };
 }
 
-/* Fuerza B (full body, jueves, sin correr). Incluye los pogos de mantenimiento
-   en el sitio (bajo impacto: valen en casa). Los kilos son ORIENTATIVOS
-   (Roman no los registró): puntos de partida para ajustar sobre la marcha. */
+/* Fuerza B — APARCADA. Roman pasó a una sola sesión de fuerza (la A del martes)
+   porque dos le disparaban las agujetas. Se conserva el bloque entero por si
+   más adelante quiere reintroducirla; hoy no se programa en ningún día.
+   Full body, sin correr, con pogos de mantenimiento. Kilos orientativos. */
 const FUERZA_B = {
   t: 'Fuerza B', st: 'Full body · cargas orientativas',
   ej: [
@@ -183,15 +185,12 @@ BASE.forEach((w, i) => {
     };
   }
 
-  /* Jueves — Fuerza B (incluye los pogos de mantenimiento) */
+  /* Jueves — descanso. Roman baja a UNA sola sesión de fuerza (la A del martes):
+     dos le disparaban las agujetas y contaminaban los rodajes. Los pogos y el
+     tren superior de tirón siguen cubiertos en el parque del sábado. */
   PLAN[mas(w.lunes, 3)] = {
-    kind: 'fuerza', t: 'Fuerza B',
-    sub: 'Sin correr. Full body, con los pogos de mantenimiento al final.',
-    grupos: [FUERZA_B],
-    notes: [
-      NOTA_HOMBRO,
-      ['Techo de barra: 67 kg. Progresas de 2 en 2.']
-    ]
+    kind: 'descanso', t: 'Descanso',
+    sub: 'Sin correr y sin fuerza. Antes tocaba Fuerza B, pero con dos sesiones de fuerza las agujetas te reventaban. Ahora la fuerza va toda al martes.'
   };
 
   /* Viernes — rodaje (+ rectas en S2, S4, S5) */
@@ -222,7 +221,7 @@ export const COROS = {
   1: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil' },
   2: { kind: 'rodaje', t: 'Plan COROS + Fuerza A', sub: 'Lo que ponga el reloj + Fuerza A por la tarde.', hr: 'facil', km: true, grupos: [fuerzaA()] },
   3: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
-  4: { kind: 'fuerza', t: 'Fuerza B', sub: 'Sin correr. Full body con pogos de mantenimiento.', grupos: [FUERZA_B], notes: [NOTA_HOMBRO, ['Techo de barra: 67 kg. Progresas de 2 en 2.']] },
+  4: { kind: 'descanso', t: 'Descanso', sub: 'Sin fuerza: bajamos a una sola sesión (la Fuerza A del día 2). Si COROS te pone rodaje suave, hazlo, pero nada de fuerza.' },
   5: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
   6: parque(),
   0: { kind: 'larga', t: 'Tirada larga · COROS', sub: 'La sesión sagrada. Hidratación y guayaba según duración.', hr: 'larga', km: true }

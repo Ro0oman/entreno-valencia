@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Maratón Valencia · sub-4h">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22374a"/>
+      <stop offset="1" stop-color="#1d2d3d"/>
+    </linearGradient>
+    <linearGradient id="peak" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#94bce3"/>
+      <stop offset="1" stop-color="#5980a6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- El triángulo de la marca: un pico / cumbre -->
+  <path d="M256 150 L372 356 L140 356 Z" fill="url(#peak)"/>
+  <!-- Cara izquierda más clara para dar relieve -->
+  <path d="M256 150 L256 356 L140 356 Z" fill="#94bce3" opacity=".22"/>
+  <!-- Línea de meta bajo la cumbre -->
+  <rect x="140" y="378" width="232" height="10" rx="5" fill="#5980a6" opacity=".55"/>
+</svg>

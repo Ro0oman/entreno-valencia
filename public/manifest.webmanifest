@@ -1,0 +1,17 @@
+{
+  "name": "Maratón Valencia · sub-4h",
+  "short_name": "Valencia",
+  "description": "Panel de entrenamiento — Maratón Valencia 2026, sub-4h",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1d2d3d",
+  "theme_color": "#1d2d3d",
+  "icons": [
+    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}
