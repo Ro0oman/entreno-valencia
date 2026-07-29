@@ -98,13 +98,20 @@ function nutriLarga(km) {
 export const BASE = [
   { lunes: '2026-07-13', km: [0, 0, 0, 10], total: 18, viaje: true, sentadilla: 37 },
   { lunes: '2026-07-20', km: [8, 6, 6, 12], total: 32, sentadilla: 41, rectas: true },
-  { lunes: '2026-07-27', km: [8, 7, 8, 14], total: 37, sentadilla: 45,
+  { lunes: '2026-07-27', km: [8, 7, 8, 14], total: 39, sentadilla: 45, bloques: 4,
     calidad: "2 km calentar + 4×6' a RPE 7-8 (rec. 2' trote) + 1,5 km soltar" },
   { lunes: '2026-08-03', km: [8, 6, 7, 10], total: 31, sentadilla: 39, descarga: true, rectas: true },
-  { lunes: '2026-08-10', km: [9, 8, 9, 16], total: 42, sentadilla: 47, rectas: true,
+  { lunes: '2026-08-10', km: [9, 8, 9, 16], total: 44, sentadilla: 47, rectas: true, bloques: 5,
     calidad: "2 km calentar + 5×6' a RPE 7-8 (rec. 2') + 1,5 km soltar",
     largaNota: '13 km fáciles + últimos 3 km a RITMO MARATÓN (5:35-5:40). Primer test real de RM sobre piernas cansadas.' }
 ];
+
+/* Km reales de una sesión de calidad. El `km` del miércoles es el de un rodaje;
+   una sesión de series recorre bastante más: calentamiento + bloques + las
+   recuperaciones (que también son kilómetros) + soltar. Medido sobre el .fit del
+   29 jul: bloque de 6' ≈ 1,11 km a 5:25 y recuperación de 2' ≈ 0,27 km a 7:30.
+   Con 4 bloques da 9,0 km — COROS preveía 8,96 y Roman corrió 8,95. */
+const kmCalidad = n => Math.round((2 + n * 1.108 + n * 0.267 + 1.5) * 10) / 10;
 
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const mas = (s, n) => { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + n); return iso(d); };
@@ -169,11 +176,14 @@ BASE.forEach((w, i) => {
 
   /* Miércoles — rodaje fácil, o CALIDAD en S3 y S5 */
   if (w.calidad) {
+    const kmQ = kmCalidad(w.bloques);
     PLAN[mas(w.lunes, 2)] = {
-      kind: 'calidad', t: `Calidad ≈ ${b} km`, km: b,
+      kind: 'calidad', t: `Calidad ≈ ${String(kmQ).replace('.', ',')} km`, km: kmQ,
       sub: w.calidad,
       notes: [
-        ['Los bloques a RPE 7-8: en calor, por sensación (~5:10-5:25/km). No los conviertas en carrera.', 'warn'],
+        ['Manda el RITMO, no el pulso: bloques a 5:15-5:25/km y acepta la FC que salga. Tu umbral son 4:57, así que a 5:20 vas por debajo aunque el pulso diga otra cosa.', 'warn'],
+        ['En julio el calor te cuesta ~10 ppm extra: ver 175-180 en el 3er bloque es normal y no significa que vayas pasado.'],
+        ['Si una recuperación se te queda corta, ándala. El 29 jul andaste la 3ª y el último bloque salió el más rápido del día.'],
         ['Calienta bien los 2 km. Suelta trotando, no andando.']
       ]
     };
