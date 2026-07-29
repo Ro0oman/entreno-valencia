@@ -298,6 +298,23 @@ function puntuar(a) {
       { k: 'Desacople aeróbico', max: 40, pts: pct == null ? 40 : 40 * clamp(1 - (pct - 8) / 12, 0, 1), txt: pct == null ? '—' : `+${pct}% de pérdida de eficiencia` },
       { k: 'Cumplimiento', max: 35, pts: 35 * cumpl, txt: cumplTxt }
     ];
+  } else if (kind === 'calidad') {
+    /* En calidad subir del techo NO es un error: es el encargo. Y el desacople
+       1ª vs 2ª mitad no significa nada con series (los bloques no se reparten
+       igual). Se juzga otra cosa: que el trabajo duro esté en su sitio, que las
+       recuperaciones y el calentamiento sean de verdad suaves, y el volumen. */
+    const duro = (a.zonas?.alto ?? 0) + techoPct;   // ≥159 ppm: bloques
+    const suave = (a.zonas?.bajo ?? 0) + (a.zonas?.facil ?? 0);
+    const ventana = duro < 20 ? clamp(duro / 20, 0, 1)          // te quedaste corto
+      : duro <= 50 ? 1                                          // en el punto
+      : clamp(1 - (duro - 50) / 25, 0, 1);                      // te pasaste de rosca
+    comps = [
+      { k: 'Trabajo de calidad', max: 40, pts: 40 * ventana,
+        txt: `${duro}% del tiempo en zona dura (objetivo 20–50%)` },
+      { k: 'Calentar y recuperar', max: 25, pts: 25 * clamp(suave / 40, 0, 1),
+        txt: `${suave}% suave entre bloques y en el calentamiento` },
+      { k: 'Cumplimiento', max: 35, pts: 35 * cumpl, txt: cumplTxt }
+    ];
   } else {
     // Rodaje fácil (y por defecto): el control del pulso es lo que más pesa.
     comps = [
@@ -310,7 +327,13 @@ function puntuar(a) {
   const nota = Math.round(comps.reduce((s, c) => s + c.pts, 0));
   const fuga = comps.slice().sort((x, y) => (y.max - y.pts) - (x.max - x.pts))[0];
   const banda = nota >= 85 ? 'Sesión de manual' : nota >= 70 ? 'Sólida' : nota >= 55 ? 'Correcta, con un pero' : 'Para revisar';
-  const motivo = { 'Control de pulso': 'se te fue de pulso', 'Desacople aeróbico': 'perdiste eficiencia en la 2ª mitad', 'Cumplimiento': 'faltó volumen' }[fuga.k];
+  const motivo = {
+    'Control de pulso': 'se te fue de pulso',
+    'Desacople aeróbico': 'perdiste eficiencia en la 2ª mitad',
+    'Trabajo de calidad': 'el reparto duro/suave no cuadra con la sesión',
+    'Calentar y recuperar': 'faltó rodar suave entre bloques',
+    'Cumplimiento': plan && a.km > plan ? 'te pasaste de los km previstos' : 'faltó volumen'
+  }[fuga.k];
   const veredicto = (fuga.max - fuga.pts) < fuga.max * 0.15 ? `${banda}.` : `${banda} — ${motivo}.`;
   return { nota, veredicto, comps: comps.map(c => ({ ...c, pts: Math.round(c.pts) })) };
 }
@@ -337,6 +360,7 @@ function analisisHTML(a, guardar = true) {
   }).join('');
 
   const p = puntuar(a);
+  const esCalidad = sesionEfectiva(a.fecha)?.kind === 'calidad';
   const scoreBlock = `<div class="an-score bp">${CORNERS}
       <div class="an-score-head">
         <div class="an-nota"><span class="n">${p.nota}</span><span class="d">/100</span></div>
@@ -373,7 +397,9 @@ function analisisHTML(a, guardar = true) {
 
     <div class="an-blk">
       <h4>Desacople aeróbico</h4>
-      <p class="an-hint">Compara la eficiencia (ritmo por pulsación) de la 1ª vs la 2ª mitad, descartando el calentamiento. Menos del 5% = mantuviste el motor.</p>
+      <p class="an-hint">${esCalidad
+        ? 'En una sesión de series este número <b>no cuenta para la nota</b>: los bloques no se reparten igual entre las dos mitades, así que el dato es informativo.'
+        : 'Compara la eficiencia (ritmo por pulsación) de la 1ª vs la 2ª mitad, descartando el calentamiento. Menos del 5% = mantuviste el motor.'}</p>
       <div class="an-deriva bp ${dCls}">${CORNERS}
         <div class="an-half"><span class="hl">1ª MITAD</span><b>${d.hr1 ?? '—'}</b><small>ppm · ${rit(d.pace1)}</small></div>
         <div class="an-arrow">→</div>
