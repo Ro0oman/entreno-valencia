@@ -82,6 +82,52 @@ const FUERZA_B = {
   ]
 };
 
+/* ============================================================
+   SALES — 226ERS SUB-9 Salts Electrolytes. 250 mg de sodio por cápsula.
+   45 min entre tomas ≈ 333 mg/h: es el punto de partida para probar tolerancia.
+   Si hace falta bajarlo a 30, se cambia AQUÍ y ni el checklist ni la pauta
+   necesitan tocar código.
+   ============================================================ */
+export const SALES = {
+  intervaloMin: 45,
+  mgPorCapsula: 250,
+  umbralDuracionMin: 40,      // por debajo de esto la sesión no entra
+  umbralTempC: 28,
+  margenFinalMin: 10,         // no se programa una toma si queda menos que esto para acabar
+  precargaAntesDeSalir: false // false = la primera toma va en el minuto `intervaloMin`,
+                              // no en el 0: se repone lo sudado, no se precarga
+};
+
+/* Ritmo con el que se estima la duración de una sesión, por tipo de día.
+   No es un objetivo: solo sirve para saber cuánto vas a estar fuera. min/km. */
+const RITMO_EST = { facil: 6.2, larga: 6.4, calidad: 5.8 };
+
+/* Duración estimada en minutos. Prioriza el `durMin` explícito de la sesión;
+   si no lo hay, la calcula desde los km. Devuelve 0 cuando no se puede saber
+   (fuerza, parque, días de COROS con `km: true`), y entonces no se pinta nada. */
+export function duracionEstimadaMin(s) {
+  if (!s) return 0;
+  if (typeof s.durMin === 'number') return s.durMin;
+  if (typeof s.km !== 'number') return 0;
+  return Math.round(s.km * (RITMO_EST[s.kind] || RITMO_EST[s.hr] || RITMO_EST.facil));
+}
+
+/* Minutos de toma: 0, intervalo, 2·intervalo… mientras caigan dentro de la sesión
+   y quede sesión por delante para que la cápsula sirva de algo (margenFinalMin:
+   tomarse una sal a falta de cinco minutos no repone nada).
+   Vacío si la sesión no llega al umbral de duración. */
+export function minutosSales(dur) {
+  if (!dur || dur < SALES.umbralDuracionMin) return [];
+  const min = [];
+  const inicio = SALES.precargaAntesDeSalir ? 0 : SALES.intervaloMin;
+  for (let m = inicio; m < dur - SALES.margenFinalMin; m += SALES.intervaloMin) min.push(m);
+  return min;
+}
+
+/* Cápsulas a llevar encima: exactamente las tomas de la pauta, ni una más.
+   Si llevas 2 y la pauta dice una, la segunda vuelve a casa en el bolsillo. */
+export const capsulasSales = dur => minutosSales(dur).length;
+
 /* Nutrición de la tirada larga, según distancia (v2.1 §6) */
 function nutriLarga(km) {
   const sodio = ['Verano en Valencia: 400-600 ml de agua/hora + 1-2 cápsulas de sales.', 'warn'];
@@ -100,10 +146,19 @@ export const BASE = [
   { lunes: '2026-07-20', km: [8, 6, 6, 12], total: 32, sentadilla: 41, rectas: true },
   { lunes: '2026-07-27', km: [8, 7, 8, 14], total: 39, sentadilla: 45, bloques: 4,
     calidad: "2 km calentar + 4×6' a RPE 7-8 (rec. 2' trote) + 1,5 km soltar" },
-  { lunes: '2026-08-03', km: [8, 6, 7, 10], total: 31, sentadilla: 39, descarga: true, rectas: true },
-  { lunes: '2026-08-10', km: [9, 8, 9, 16], total: 44, sentadilla: 47, rectas: true, bloques: 5,
+  /* S4 y S5 recalibradas el 2 ago. La S3 real cerró en 39,7 km con una tirada de
+     14,01 km (a 6:45/km con 150 ppm de media), muy por encima de lo previsto.
+     Bajar la larga a 10 km no era descarga, era perder el hilo: obligaba a saltar
+     de 10 a 16 km en la S5 (+60%) justo antes del plan de COROS. La descarga se
+     hace en volumen TOTAL (39,7 → 34, −14%) manteniendo la larga en 13 km. */
+  { lunes: '2026-08-03', km: [8, 6, 7, 13], total: 34, sentadilla: 39, descarga: true, rectas: true },
+  /* S5: 13 → 15 km de larga (+15%, dentro de regla) y 38 km totales. Los rodajes
+     de entre semana bajan para que la calidad de 5 bloques quepa sin disparar el
+     acumulado. Llegar al 17 ago con 38 km/semana y larga de 15 es base sólida;
+     los 44/16 originales eran objetivo, no obligación. */
+  { lunes: '2026-08-10', km: [7, 6, 6, 15], total: 38, sentadilla: 47, rectas: true, bloques: 5,
     calidad: "2 km calentar + 5×6' a RPE 7-8 (rec. 2') + 1,5 km soltar",
-    largaNota: '13 km fáciles + últimos 3 km a RITMO MARATÓN (5:35-5:40). Primer test real de RM sobre piernas cansadas.' }
+    largaNota: '12 km fáciles + últimos 3 km a RITMO MARATÓN (5:35-5:40). Primer test real de RM sobre piernas cansadas.' }
 ];
 
 /* Km reales de una sesión de calidad. El `km` del miércoles es el de un rodaje;

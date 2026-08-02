@@ -45,6 +45,34 @@ const escribirAj = (o) => {
 };
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
+/* ---------- Estado de la app (lo que no es plan ni sesión) ----------
+   Vive en su propio fichero del volumen para no mezclarse con el histórico.
+   Hoy solo guarda el checklist de sales del día. */
+const DB_EST = path.join(DATA_DIR, 'estado.json');
+if (!fs.existsSync(DB_EST)) fs.writeFileSync(DB_EST, '{}');
+const leerEst = () => { try { return JSON.parse(fs.readFileSync(DB_EST, 'utf8')); } catch { return {}; } };
+const escribirEst = (o) => {
+  const tmp = DB_EST + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(o, null, 2));
+  fs.renameSync(tmp, DB_EST);
+};
+
+/* El día natural manda en Europe/Madrid, no en la hora del servidor: el checklist
+   se vacía a medianoche de Valencia aunque el contenedor vaya en UTC. */
+const hoyMadrid = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date());
+
+/* Checklist de sales del día. Si la fecha guardada no es la de hoy, se devuelve
+   (y se reescribe) en blanco: no se arrastra lo marcado ayer. */
+const checklistDeHoy = () => {
+  const est = leerEst();
+  const c = est.checklistSales;
+  const f = hoyMadrid();
+  if (c && c.fecha === f) return { fecha: f, capsulas: !!c.capsulas, bidon: !!c.bidon };
+  const limpio = { fecha: f, capsulas: false, bidon: false };
+  escribirEst({ ...est, checklistSales: limpio });
+  return limpio;
+};
+
 /* ---------- Auth: token firmado (HMAC) con caducidad ----------
    token = base64url({iat}) + "." + HMAC. Caduca a los 30 días, y rotar
    SESSION_SECRET invalida todos los tokens emitidos ("cerrar sesión en todos"). */
@@ -215,6 +243,38 @@ app.put('/api/ajustes', auth, (req, res) => {
   }
   escribirAj(limpio);
   res.json(limpio);
+});
+
+/* Checklist de sales: leer y marcar. Solo dos casillas, siempre del día en curso. */
+app.get('/api/checklist', auth, (_req, res) => res.json(checklistDeHoy()));
+
+app.put('/api/checklist', auth, (req, res) => {
+  const b = req.body || {};
+  const c = { fecha: hoyMadrid(), capsulas: b.capsulas === true, bidon: b.bidon === true };
+  escribirEst({ ...leerEst(), checklistSales: c });
+  res.json(c);
+});
+
+/* ---------- Temperatura prevista (Valencia) ----------
+   Open-Meteo, sin clave. Se cachea por día: una llamada y a correr. Si falla,
+   se devuelve null y el checklist decide solo por duración. */
+const CLIMA = { fecha: null, maxC: null };
+app.get('/api/clima', auth, async (_req, res) => {
+  const f = hoyMadrid();
+  if (CLIMA.fecha === f) return res.json({ fecha: f, maxC: CLIMA.maxC });
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=39.47&longitude=-0.376' +
+      '&daily=temperature_2m_max&timezone=Europe%2FMadrid&forecast_days=1';
+    const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    const j = await r.json();
+    const v = j?.daily?.temperature_2m_max?.[0];
+    if (!Number.isFinite(v)) throw new Error('sin dato');
+    CLIMA.fecha = f;                    // solo se cachea el acierto
+    CLIMA.maxC = Math.round(v);
+  } catch {
+    return res.json({ fecha: f, maxC: null }); // un fallo puntual se reintenta en la próxima carga
+  }
+  res.json({ fecha: f, maxC: CLIMA.maxC });
 });
 
 app.get('/salud', (_req, res) => res.json({ ok: true, sesiones: leer().length }));

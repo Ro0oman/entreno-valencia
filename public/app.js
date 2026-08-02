@@ -1,4 +1,4 @@
-import { META, BASE, INICIO_COROS, sesionDe } from './plan.js?v=3';
+import { META, BASE, INICIO_COROS, sesionDe, SALES, duracionEstimadaMin, minutosSales, capsulasSales } from './plan.js?v=4';
 
 /* ---------- API ---------- */
 const TK = 'entreno:token';
@@ -21,6 +21,8 @@ async function api(ruta, opts = {}) {
 
 let LOGS = [];
 let AJUSTES = {};   // ajustes del plan por fecha: { "YYYY-MM-DD": {swap:"..."} | {skip:true} }
+let CHECK = null;   // checklist de sales del día: { fecha, capsulas, bidon }
+let MAXC = null;    // temperatura máxima prevista hoy en Valencia, o null si no la hay
 
 /* Sesión de un día YA con los ajustes aplicados (intercambios y saltados).
    Todo lo que pinta el plan debe pasar por aquí, no por sesionDe directo. */
@@ -131,6 +133,79 @@ function acordeonHTML(grupos, abrirPrimera = true) {
 /* Envuelve el "N km" final del título en un span apagado */
 const tituloHTML = t => esc(t).replace(/(\d+[.,]?\d*\s*km)\s*$/i, '<span class="dim">$1</span>');
 
+/* ---------- Sales ----------
+   Dos piezas, las dos derivadas de SALES en plan.js: el checklist de antes de
+   salir (vista HOY) y la pauta de toma que va pegada a la regla de FC.
+   Existen porque una sesión larga con calor y sin sodio acaba en dolor de cabeza. */
+
+/* Línea de pauta: "Sal: cápsula en min 0 · 45 · 90 — cada una con 150-200 ml de agua".
+   Se calcula desde la duración; si la sesión no pasa del umbral, no hay línea. */
+function salesPautaHTML(s) {
+  const min = minutosSales(duracionEstimadaMin(s));
+  if (!min.length) return '';
+  const agua = min.length === 1 ? '— con 150-200 ml de agua' : '— cada una con 150-200 ml de agua';
+  return `<div class="salt-line">
+    <span class="salt-k">SAL</span>
+    <span class="salt-v">Cápsula en min <b>${min.join(' · ')}</b> <span class="salt-w">${agua}</span></span>
+  </div>`;
+}
+
+/* Lo que hay que llevar encima, en la ficha de un día cualquiera. El checklist
+   marcable solo tiene sentido el mismo día; abriendo el domingo desde SEMANA lo
+   que quieres saber es el número, para comprarlo o dejarlo preparado la víspera.
+   Mismo cálculo que el checklist, sin casillas. */
+function salesCargaHTML(s) {
+  const dur = duracionEstimadaMin(s);
+  const n = capsulasSales(dur);
+  if (!n) return '';   // sin tomas programadas no hay nada que llevar
+  return `<div class="salt-line">
+    <span class="salt-k">LLEVAR</span>
+    <span class="salt-v"><b>${n}</b> cápsula${n === 1 ? '' : 's'} de sales <span class="salt-w">· bidón 500 ml · ~${dur} min de sesión</span></span>
+  </div>`;
+}
+
+/* Checklist de antes de salir. Aparece si la sesión es larga O si aprieta el calor;
+   si no se cumple ninguna de las dos, no se pinta nada (ni gris ni vacío). */
+function salesChecklistHTML(s) {
+  const dur = duracionEstimadaMin(s);
+  const programadas = capsulasSales(dur);
+  const porCalor = MAXC != null && MAXC > SALES.umbralTempC;
+  if (!programadas && !porCalor) return '';
+  if (!dur) return '';                      // calor pero sin duración conocida: no hay N que pedir
+  /* Sin tomas programadas pero con calor: llevas una y te la tomas si vas goteando.
+     No se anuncia un minuto que la pauta no va a confirmar. */
+  const n = programadas || 1;
+  const motivo = programadas && porCalor ? `${dur} min · ${MAXC}°C`
+    : programadas ? `${dur} min` : `${MAXC}°C`;
+  const suelta = !programadas ? ' <span class="salt-w">(por el calor, si vas goteando)</span>' : '';
+  const fila = (id, on, txt) => `<button class="salt-row${on ? ' on' : ''}" id="${id}" type="button" role="checkbox" aria-checked="${on}">
+      <span class="salt-box">${on ? '✕' : ''}</span><span class="salt-t">${txt}</span>
+    </button>`;
+  const c = CHECK || { capsulas: false, bidon: false };
+  return `<div class="salt bp">${CORNERS}
+    <div class="salt-head"><span class="salt-lab">ANTES DE SALIR</span><span class="salt-why">${esc(motivo)}</span></div>
+    ${fila('ckCaps', c.capsulas, `${n === 1 ? 'Cápsula' : 'Cápsulas'} de sales: llevar <b>${n}</b>${suelta}`)}
+    ${fila('ckBidon', c.bidon, 'Bidón 500 ml')}
+  </div>`;
+}
+
+/* Marcar una casilla: se pinta al momento y se guarda; si el guardado falla,
+   se revierte para no mentir sobre lo que hay en el volumen. */
+function wireChecklist() {
+  const pares = [['ckCaps', 'capsulas'], ['ckBidon', 'bidon']];
+  for (const [id, campo] of pares) {
+    const el = $(id);
+    if (!el) continue;
+    el.onclick = async () => {
+      const previo = CHECK ? { ...CHECK } : { capsulas: false, bidon: false };
+      CHECK = { ...previo, [campo]: !previo[campo] };
+      pintarHoy();
+      try { CHECK = await api('/checklist', { method: 'PUT', body: JSON.stringify(CHECK) }); }
+      catch { CHECK = previo; pintarHoy(); }
+    };
+  }
+}
+
 const QUOTE = 'El ritmo es una consecuencia, no un objetivo.';
 
 /* ---------- Vista HOY ---------- */
@@ -207,8 +282,10 @@ function pintarHoy() {
     <div class="kickrow"><span class="kicker">${diaKicker}</span>${rightTag}</div>
     <h1 class="title">${tituloHTML(s.t)}</h1>
     ${tagsRow}
+    ${salesChecklistHTML(s)}
     ${regDone}
     ${pulso}
+    ${salesPautaHTML(s)}
     ${sinPulso}
     ${body ? `<p class="body">${esc(body)}</p>` : ''}
     ${quote ? `<p class="quote">"${quote}"</p>` : ''}
@@ -221,6 +298,7 @@ function pintarHoy() {
   wireRegistro(s, ya);
   wireAcordeon();
   wireFit();
+  wireChecklist();
 }
 
 /* ---------- Análisis del .fit ---------- */
@@ -903,7 +981,7 @@ function verSesion(f) {
       <span class="kicker">${cab}</span>
       <h1 class="title">${tituloHTML(s.t)}</h1>
     </div>
-    <div class="det-body">${resumen}${pulso}${sinReg}${intro}${analisis}${acc}${notasHTML(s.notes)}${editor}</div>`;
+    <div class="det-body">${resumen}${pulso}${salesCargaHTML(s)}${salesPautaHTML(s)}${sinReg}${intro}${analisis}${acc}${notasHTML(s.notes)}${editor}</div>`;
   $('detalle').hidden = false;
   $('detClose').onclick = cerrarDetalle;
   $('detClose').focus();
@@ -995,8 +1073,8 @@ async function entrar() {
 async function arrancar() {
   if (!token) return puerta();
   try {
-    const [logs, aj] = await Promise.all([api('/sesiones'), api('/ajustes')]);
-    LOGS = logs; AJUSTES = aj || {};
+    const [logs, aj, ck] = await Promise.all([api('/sesiones'), api('/ajustes'), api('/checklist')]);
+    LOGS = logs; AJUSTES = aj || {}; CHECK = ck;
   } catch {
     if (!token) return;        // era 401: api() ya mostró la puerta
     return mostrarError();     // 500 / red caída: pantalla de error con reintento, no en blanco
@@ -1005,6 +1083,10 @@ async function arrancar() {
   $('app').hidden = false;
   $('dleft').textContent = diasRestantes();
   ir('hoy');
+
+  /* La previsión va aparte y sin bloquear: si Open-Meteo no contesta, la app
+     ya está pintada y el checklist decide solo por duración. */
+  api('/clima').then(c => { if (c.maxC != null) { MAXC = c.maxC; pintarHoy(); } }).catch(() => {});
 }
 
 /* Pantalla de error de carga con botón de reintento (antes: pantalla en blanco) */
