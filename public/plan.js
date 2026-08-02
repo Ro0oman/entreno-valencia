@@ -45,18 +45,25 @@ function parque() {
 }
 
 /* Fuerza A (full body, martes). La sentadilla cambia de carga cada semana;
-   el resto son las cargas reales de tu sesión registrada (log de Hevy, S1). */
-function fuerzaA(kg) {
+   el resto son las cargas reales de tu sesión registrada (log de Hevy, S1).
+   `mant` = modo mantenimiento del bloque COROS: carga fija y 2 series en vez de
+   3. Durante un bloque de maratón la fuerza conserva, no construye. El número de
+   series se sustituye en TODAS las dosis (`s`), no solo en el subtítulo: si la
+   cabecera dice 2 series y los ejercicios siguen poniendo 3, la ficha miente. */
+function fuerzaA(kg, mant = false) {
+  const s = mant ? 2 : 3;
   return {
-    t: 'Fuerza A', st: 'Full body · 3 series',
+    t: 'Fuerza A', st: mant ? 'Full body · MANTENIMIENTO · 2 series' : 'Full body · 3 series',
     ej: [
-      { ej: 'Sentadilla (barra)', dosis: kg ? `${kg} kg · 3 × 5` : '3 × 5 · la carga que toque', nota: 'La carga de la semana. RPE 7-8, nada al fallo.' },
-      { ej: 'Peso muerto rumano (barra)', dosis: '35 kg · 3 × 8', nota: 'Bisagra de cadera, espalda neutra.' },
-      { ej: 'Press de banca (barra)', dosis: '45 kg · 3 × 6', nota: 'Codos a ~45°, sin rebote. El hombro manda.' },
-      { ej: 'Remo inclinado a una pierna', dosis: '20 kg · 3 × 5-6' },
-      { ej: 'Elevación de gemelos de pie (mancuerna)', dosis: '26 kg · 3 × 13-15' },
-      { ej: 'Elevación de tibiales', dosis: '3 × 20', nota: 'Peso corporal. Seguro anti-Aquiles y anti-espinilla.' },
-      { ej: 'Plancha', dosis: '3 × 40"' },
+      { ej: 'Sentadilla (barra)', dosis: `${kg} kg · ${s} × 5`,
+        nota: mant ? 'Mantenimiento: carga fija, RPE 6. Ni progresas ni bajas. Todo a 2 series.'
+                   : 'La carga de la semana. RPE 7-8, nada al fallo.' },
+      { ej: 'Peso muerto rumano (barra)', dosis: `35 kg · ${s} × 8`, nota: 'Bisagra de cadera, espalda neutra.' },
+      { ej: 'Press de banca (barra)', dosis: `45 kg · ${s} × 6`, nota: 'Codos a ~45°, sin rebote. El hombro manda.' },
+      { ej: 'Remo inclinado a una pierna', dosis: `20 kg · ${s} × 5-6` },
+      { ej: 'Elevación de gemelos de pie (mancuerna)', dosis: `26 kg · ${s} × 13-15` },
+      { ej: 'Elevación de tibiales', dosis: `${s} × 20`, nota: 'Peso corporal. Seguro anti-Aquiles y anti-espinilla.' },
+      { ej: 'Plancha', dosis: `${s} × 40"` },
       { ej: 'Rotación externa con goma', dosis: '2 × 15', nota: 'Con goma, por lado. Tu seguro del hombro, todas las semanas.' }
     ]
   };
@@ -89,7 +96,9 @@ const FUERZA_B = {
    necesitan tocar código.
    ============================================================ */
 export const SALES = {
-  intervaloMin: 45,
+  intervaloMin: 35,           // con precargaAntesDeSalir:false el nominal engaña: la 1ª toma
+                              // llega tarde. A 45' una tirada de 90 min recibía UNA cápsula
+                              // (~167 mg/h, la mitad del diseño). A 35' recibe 2 ≈ 333 mg/h reales.
   mgPorCapsula: 250,
   umbralDuracionMin: 40,      // por debajo de esto la sesión no entra
   umbralTempC: 28,
@@ -99,8 +108,12 @@ export const SALES = {
 };
 
 /* Ritmo con el que se estima la duración de una sesión, por tipo de día.
-   No es un objetivo: solo sirve para saber cuánto vas a estar fuera. min/km. */
-const RITMO_EST = { facil: 6.2, larga: 6.4, calidad: 5.8 };
+   No es un objetivo: solo sirve para saber cuánto vas a estar fuera. min/km.
+   Calibrado con los ritmos reales de Roman, no con los objetivos: los rodajes
+   fáciles van a 7:20-7:30 y la larga del 2 ago salió a 6:45. Con los valores
+   optimistas de antes un rodaje de 8 km se estimaba en 50 min y no disparaba
+   ninguna cápsula de sales; con estos son 59 min y sí. */
+const RITMO_EST = { facil: 7.4, larga: 6.9, calidad: 6.7 };
 
 /* Duración estimada en minutos. Prioriza el `durMin` explícito de la sesión;
    si no lo hay, la calcula desde los km. Devuelve 0 cuando no se puede saber
@@ -128,15 +141,22 @@ export function minutosSales(dur) {
    Si llevas 2 y la pauta dice una, la segunda vuelve a casa en el bolsillo. */
 export const capsulasSales = dur => minutosSales(dur).length;
 
-/* Nutrición de la tirada larga, según distancia (v2.1 §6) */
-function nutriLarga(km) {
-  const sodio = ['Verano en Valencia: 400-600 ml de agua/hora + 1-2 cápsulas de sales.', 'warn'];
-  let comida;
-  if (km <= 10)      comida = ['Menos de ~70 min: solo agua, sin comer.'];
-  else if (km <= 12) comida = ["Bocadillo de guayaba a los 50' (~30 g ≈ un gel). Siempre con agua."];
-  else if (km <= 14) comida = ["Bocadillo de guayaba a los 45' y a los 85'. Siempre con agua."];
-  else               comida = ["Bocadillo a los 40' y a los 80' + agua constante. Ensayas los 60-90 g CH/hora del día M."];
-  return [comida, sodio];
+/* Nutrición de la tirada larga (v2.1 §6). Va por DURACIÓN, no por tramos de km:
+   comer depende de cuánto tiempo estás fuera, no de la distancia. Toma cada 40'
+   y mismo criterio de margen final que las sales — una toma a los 85' en una
+   sesión de 88 min desaparece sola en vez de quedarse escrita. */
+function nutriLarga(km, dur) {
+  const sodio = ['Verano en Valencia: 400-600 ml de agua/hora + sales según la pauta.', 'warn'];
+  const min = dur || Math.round(km * RITMO_EST.larga);
+  if (min < 70) return [['Menos de ~70 min: solo agua, sin comer.'], sodio];
+  const tomas = [];
+  for (let m = 40; m < min - 15; m += 40) tomas.push(m);
+  const lista = tomas.map(m => `${m}'`).join(' y ');
+  return [
+    [`Bocadillo de guayaba a los ${lista} (~30 g ≈ un gel). Siempre con agua.` +
+     (tomas.length >= 3 ? ' Aquí ya ensayas los 60-90 g CH/hora del día M.' : '')],
+    sodio
+  ];
 }
 
 /* Las 5 semanas de la fase base (13 jul → 16 ago).
@@ -158,7 +178,9 @@ export const BASE = [
      los 44/16 originales eran objetivo, no obligación. */
   { lunes: '2026-08-10', km: [7, 6, 6, 15], total: 38, sentadilla: 47, rectas: true, bloques: 5,
     calidad: "2 km calentar + 5×6' a RPE 7-8 (rec. 2') + 1,5 km soltar",
-    largaNota: '12 km fáciles + últimos 3 km a RITMO MARATÓN (5:35-5:40). Primer test real de RM sobre piernas cansadas.' }
+    largaNota: '12 km fáciles + últimos 3 km a ESFUERZO de maratón: subes a 165-170 ppm ' +
+               'y aceptas el ritmo que salga (con este calor, 5:55-6:10). Ensayas el cambio ' +
+               'de marcha con las piernas cansadas, no un ritmo. El test de 5:35-5:40 es en octubre.' }
 ];
 
 /* Km reales de una sesión de calidad. El `km` del miércoles es el de un rodaje;
@@ -223,7 +245,7 @@ BASE.forEach((w, i) => {
     grupos: [fuerzaA(w.sentadilla)],
     notes: [
       w.descarga
-        ? ['Semana de descarga: la sentadilla baja un 20%. No busques records.', 'warn']
+        ? [`Semana de descarga: la sentadilla baja a ${w.sentadilla} kg. No busques records.`, 'warn']
         : ['Fuerza A por la tarde. Nada al fallo, RPE 7-8.'],
       ['Techo de barra: 67 kg. Progresas de 2 en 2.']
     ]
@@ -284,12 +306,20 @@ BASE.forEach((w, i) => {
 /* Del 17 ago al 6 dic manda COROS. Aquí solo se fijan los anclajes. */
 export const COROS = {
   1: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil' },
-  2: { kind: 'rodaje', t: 'Plan COROS + Fuerza A', sub: 'Lo que ponga el reloj + Fuerza A por la tarde.', hr: 'facil', km: true, grupos: [fuerzaA()] },
+  2: { kind: 'rodaje', t: 'Plan COROS + Fuerza A', sub: 'Lo que ponga el reloj + Fuerza A por la tarde, en mantenimiento.', hr: 'facil', km: true, grupos: [fuerzaA(45, true)] },
   3: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
   4: { kind: 'descanso', t: 'Descanso', sub: 'Sin fuerza: bajamos a una sola sesión (la Fuerza A del día 2). Si COROS te pone rodaje suave, hazlo, pero nada de fuerza.' },
   5: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
   6: parque(),
   0: { kind: 'larga', t: 'Tirada larga · COROS', sub: 'La sesión sagrada. Hidratación y guayaba según duración.', hr: 'larga', km: true }
+};
+
+/* Los km que ponga el reloj, metidos a mano el domingo al ver la semana.
+   Sin entrada, el día funciona como hasta ahora (sin duración → sin sales).
+   Una línea por domingo mantiene viva la maquinaria de sales y guayaba en las
+   tiradas de 25-30 km de septiembre y octubre, que es cuando de verdad importa. */
+export const KM_COROS = {
+  // '2026-08-23': 16,
 };
 
 /* ============================================================
@@ -309,7 +339,12 @@ export const AJUSTES = {
   // Sábado 25: Roman se acuesta muy tarde esa noche → la tirada larga (sagrada)
   // se adelanta al sábado con piernas frescas y el parque de barras pasa al domingo.
   '2026-07-25': { ...PLAN['2026-07-26'], motivo: 'Noche larga del sábado 25: la tirada larga se adelanta al sábado (fresco)' },
-  '2026-07-26': { ...PLAN['2026-07-25'], motivo: 'Noche larga del sábado 25: el parque de barras pasa al domingo' }
+  '2026-07-26': { ...PLAN['2026-07-25'], motivo: 'Noche larga del sábado 25: el parque de barras pasa al domingo' },
+  '2026-08-17': {
+    kind: 'descanso', t: 'Descanso',
+    sub: 'Día 1 del plan de COROS, pero vienes de la larga de 15 km con final a esfuerzo de maratón. Si el reloj pone rodaje suave, hazlo. Si pone calidad, muévela al martes.',
+    motivo: 'Arranque COROS al día siguiente de la sesión más dura de la fase base'
+  }
 };
 
 export function sesionDe(fecha) {
@@ -325,7 +360,14 @@ export function sesionDe(fecha) {
   };
   if (PLAN[fecha]) return PLAN[fecha];
   const d = new Date(fecha + 'T00:00:00');
-  if (d >= INICIO_COROS && d <= META) return COROS[d.getDay()];
+  if (d >= INICIO_COROS && d <= META) {
+    const base = COROS[d.getDay()];
+    const km = KM_COROS[fecha];
+    if (typeof km !== 'number') return base;
+    const s = { ...base, km, t: base.kind === 'larga' ? `Tirada larga ${km} km · COROS` : `${base.t} · ${km} km` };
+    if (s.kind === 'larga') s.notes = nutriLarga(km, duracionEstimadaMin(s));
+    return s;
+  }
   if (d > META) return { kind: 'descanso', t: 'Ya está', sub: 'La maratón fue el 6 de diciembre.' };
   return { kind: 'descanso', t: 'Sin plan', sub: 'Fuera del calendario del maratón.' };
 }
