@@ -413,13 +413,21 @@ button{font-family:inherit;cursor:pointer}
 .chart svg{width:100%;height:auto;display:block;overflow:visible}
 .chart .empty{font-size:12px;color:var(--muted);text-align:center;padding:22px 8px;line-height:1.6}
 .bars{padding:16px 14px 12px}
-.barrow{display:flex;align-items:flex-end;justify-content:space-between;height:130px}
-.bar{text-align:center}
-.bar .col{position:relative;width:38px;height:120px;margin:0 auto}
+/* 21 semanas no caben en un móvil: la fila se arrastra en horizontal. Sin
+   barra de scroll visible — el corte a la derecha ya dice que hay más. */
+.barrow{display:flex;align-items:flex-end;gap:5px;height:130px;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.barrow::-webkit-scrollbar{display:none}
+.bar{text-align:center;flex:0 0 auto}
+.bar .col{position:relative;width:22px;height:120px;margin:0 auto}
 .bar .meta{position:absolute;bottom:0;width:100%;border:1px solid var(--accent)}
 .bar .fill{position:absolute;bottom:0;width:100%;background:var(--accent500);opacity:.9}
 .bar .fill.over{background:var(--ink);opacity:1}
 .bar .lb{font-family:var(--hd);font-weight:600;font-size:10px;color:var(--muted3);margin-top:6px}
+/* Dónde acaba la fase base y arranca COROS, y en qué semana estás hoy. */
+.bar.fase{margin-left:9px;padding-left:9px;border-left:1px dashed var(--divider)}
+.bar.ahora .lb{color:var(--ink)}
+.bar.ahora .col::after{content:'';position:absolute;left:0;right:0;bottom:-4px;height:2px;background:var(--ink)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--divider);
   font-family:var(--hd);font-weight:600;font-size:9px;letter-spacing:.06em;color:var(--muted3)}
 .legend span{display:flex;align-items:center;gap:5px}

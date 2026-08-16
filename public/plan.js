@@ -1,7 +1,15 @@
 /* ============================================================
-   EL PLAN — Fase base v2.1. Único archivo que tocas para cambiar entrenos.
-   Maratón Valencia · 6 dic 2026 · sub-4h (5:41/km)
+   EL PLAN — Fase base v2.1 + bloque COROS. Único archivo que tocas para
+   cambiar entrenos. Maratón Valencia · 6 dic 2026 · sub-4h (5:41/km)
+
+   Dos mitades:
+   · 13 jul → 16 ago  fase base, escrita a mano aquí abajo (BASE).
+   · 17 ago → 6 dic   plan de maratón de COROS, volcado en coros-plan.js.
+     Aquí solo se traduce a ficha y se le añade lo que COROS no sabe:
+     tu Fuerza A del martes y el parque del sábado.
    ============================================================ */
+
+import { AGENDA, aMinutos } from './coros-plan.js';
 
 export const META = new Date('2026-12-06T00:00:00');
 export const INICIO_COROS = new Date('2026-08-17T00:00:00');
@@ -145,13 +153,21 @@ export const capsulasSales = dur => minutosSales(dur).length;
    comer depende de cuánto tiempo estás fuera, no de la distancia. Toma cada 40'
    y mismo criterio de margen final que las sales — una toma a los 85' en una
    sesión de 88 min desaparece sola en vez de quedarse escrita. */
-function nutriLarga(km, dur) {
-  const sodio = ['Verano en Valencia: 400-600 ml de agua/hora + sales según la pauta.', 'warn'];
+function nutriLarga(km, dur, fecha) {
+  /* El aviso de hidratación cambia con la estación: en las largas de 3 h de
+     noviembre decirte "verano en Valencia" es ruido, y el ruido se ignora. */
+  const mes = fecha ? +fecha.slice(5, 7) : 8;
+  const sodio = (mes >= 6 && mes <= 9)
+    ? ['Verano en Valencia: 400-600 ml de agua/hora + sales según la pauta.', 'warn']
+    : ['400-500 ml de agua/hora + sales según la pauta. Sin el calor de agosto, pero en tres horas se suda igual.', 'warn'];
   const min = dur || Math.round(km * RITMO_EST.larga);
   if (min < 70) return [['Menos de ~70 min: solo agua, sin comer.'], sodio];
   const tomas = [];
   for (let m = 40; m < min - 15; m += 40) tomas.push(m);
-  const lista = tomas.map(m => `${m}'`).join(' y ');
+  /* "40', 80', 120' y 160'". Con join(' y ') las tiradas de 3 h salían con
+     cuatro "y" seguidas y no había quien las leyera. */
+  const et = tomas.map(m => `${m}'`);
+  const lista = et.length === 1 ? et[0] : `${et.slice(0, -1).join(', ')} y ${et[et.length - 1]}`;
   return [
     [`Bocadillo de guayaba a los ${lista} (~30 g ≈ un gel). Siempre con agua.` +
      (tomas.length >= 3 ? ' Aquí ya ensayas los 60-90 g CH/hora del día M.' : '')],
@@ -303,24 +319,136 @@ BASE.forEach((w, i) => {
   };
 });
 
-/* Del 17 ago al 6 dic manda COROS. Aquí solo se fijan los anclajes. */
-export const COROS = {
-  1: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil' },
-  2: { kind: 'rodaje', t: 'Plan COROS + Fuerza A', sub: 'Lo que ponga el reloj + Fuerza A por la tarde, en mantenimiento.', hr: 'facil', km: true, grupos: [fuerzaA(45, true)] },
-  3: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
-  4: { kind: 'descanso', t: 'Descanso', sub: 'Sin fuerza: bajamos a una sola sesión (la Fuerza A del día 2). Si COROS te pone rodaje suave, hazlo, pero nada de fuerza.' },
-  5: { kind: 'rodaje', t: 'Plan COROS', sub: 'Lo que ponga el reloj.', hr: 'facil', km: true },
-  6: parque(),
-  0: { kind: 'larga', t: 'Tirada larga · COROS', sub: 'La sesión sagrada. Hidratación y guayaba según duración.', hr: 'larga', km: true }
-};
+/* ============================================================
+   BLOQUE COROS — 17 ago → 6 dic. 16 semanas, 100 sesiones.
+   Ya no hay "lo que ponga el reloj": el plan entero está en coros-plan.js
+   con distancia, tiempo estimado y carga de cada día. Lo que el conector NO
+   da es la estructura interna (bloques, series, ritmos), y eso se dice en la
+   ficha en vez de disimularlo.
+   ============================================================ */
 
-/* Los km que ponga el reloj, metidos a mano el domingo al ver la semana.
-   Sin entrada, el día funciona como hasta ahora (sin duración → sin sales).
-   Una línea por domingo mantiene viva la maquinaria de sales y guayaba en las
-   tiradas de 25-30 km de septiembre y octubre, que es cuando de verdad importa. */
-export const KM_COROS = {
-  // '2026-08-23': 16,
-};
+/* Intensidad deducida de la carga por km — el único indicador que hay.
+   En este plan un rodaje aeróbico puro sale a ~10,2 TL/km sea cual sea la
+   distancia; los cortes salen de los 27 entrenos distintos (ver coros-plan.js). */
+function categoria(km, tl) {
+  const r = tl / km;
+  if (r < 10.5) return 'suave';     // aeróbico puro
+  if (r < 11.5) return 'mixto';     // fácil + un remate corto (los ",36 km")
+  if (r < 14.5) return 'calidad';   // bloques a ritmo dentro del rodaje
+  return 'dura';                    // series cortas o ritmo maratón sostenido
+}
+
+const lunesDeF = f => { const d = new Date(f + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return iso(d); };
+const kmDe = f => Math.max(0, ...(AGENDA[f] || []).map(i => i.km || 0));
+
+/* Km programados de una semana (lunes ISO). La vista SEMANA los usa para
+   decir cuántos km trae el plan, que antes era "km según el reloj". */
+export function kmPrevistosCoros(lunes) {
+  let t = 0;
+  for (let i = 0; i < 7; i++) t += kmDe(mas(lunes, i));
+  return Math.round(t);
+}
+
+/* La larga de la semana: la sesión más larga de lunes a domingo, y solo si
+   pasa de 15 km. Sin esto, la de 15,20 km de un miércoles de noviembre se
+   llevaría el cartel de sesión sagrada que le toca al domingo de 20 km. */
+const MAX_SEM = {};
+for (const f of Object.keys(AGENDA)) {
+  const l = lunesDeF(f), km = kmDe(f);
+  if (km > (MAX_SEM[l] || 0)) MAX_SEM[l] = km;
+}
+const esLargaSemana = f => kmDe(f) >= 15 && kmDe(f) === MAX_SEM[lunesDeF(f)];
+
+/* Semana del bloque COROS (1-16) a la que pertenece una fecha, o null. */
+export function semanaCoros(fecha) {
+  const l = new Date(lunesDeF(fecha) + 'T00:00:00');
+  const n = Math.round((l - INICIO_COROS) / (7 * 864e5)) + 1;
+  return n >= 1 && n <= 16 ? n : null;
+}
+
+const nKm = k => String(Math.round(k * 100) / 100).replace('.', ',');
+const hhmm = m => m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m} min`;
+
+/* Ficha de un día del bloque COROS. Se construye con la misma forma que las
+   del plan de base (kind/t/sub/km/durMin/hr/grupos/notes), así que la app la
+   pinta sin enterarse de que viene de otro sitio. */
+function sesionCoros(fecha, d) {
+  const items = AGENDA[fecha] || [];
+  const run = items.find(i => typeof i.km === 'number');
+  /* Las entradas sin km son las sesiones de FUERZA del plan de COROS. Son las
+     únicas que quedan: Roman dejó la Fuerza A y el parque de barras el 16 ago.
+     El conector solo da la duración, así que se anuncian con su duración y se
+     manda a la app de COROS a por los ejercicios. Inventarlos sería peor. */
+  const fuerza = items.filter(i => typeof i.km !== 'number');
+  /* Semana de la maratón: ni fuerza ni saltos. A siete días no se construye. */
+  const afinado = fecha >= '2026-11-30';
+  const conFuerza = fuerza.length > 0 && !afinado;
+  const durFuerza = fuerza.map(f => hhmm(aMinutos(f.t))).join(' y ');
+
+  const notaFuerza = conFuerza
+    ? [`Fuerza del plan de COROS: ${fuerza.length === 1 ? `una sesión de ${durFuerza}` : `${fuerza.length} sesiones, de ${durFuerza}`}. El conector solo da la duración — los ejercicios están en la app de COROS, dentro del plan. Es lo único de fuerza que queda en el calendario.`]
+    : null;
+
+  /* Pliometría suelta: lo único que Roman mantiene fuera de correr, y solo si
+     le apetece. Va con las piernas frescas o no va. */
+  const plioOpcional = { t: 'Pliometría (opcional)', st: 'Con piernas frescas o mejor otro día', ej: PLIO_PARQUE };
+
+  if (!run) {
+    return {
+      kind: conFuerza ? 'fuerza' : 'descanso',
+      t: conFuerza ? `Fuerza · COROS · ${durFuerza}` : 'Descanso',
+      sub: conFuerza
+        ? 'Hoy COROS no programa carrera, solo su sesión de fuerza. Los ejercicios, en la app de COROS.'
+        : 'COROS no programa nada hoy. El descanso es parte del plan, no un premio.',
+      grupos: conFuerza ? [plioOpcional] : undefined,
+      notes: conFuerza ? [notaFuerza, REGLA_PLIO] : undefined
+    };
+  }
+
+  const min = aMinutos(run.t);
+  const cat = categoria(run.km, run.tl);
+  const larga = esLargaSemana(fecha);
+  const tlkm = (run.tl / run.km).toFixed(1).replace('.', ',');
+  const cab = `COROS: ${nKm(run.km)} km en ~${hhmm(min)} · ${run.tl} TL.`;
+
+  const sub = {
+    suave: `${cab} Carga ${tlkm} TL/km: aeróbico puro, sin nada dentro. El ritmo es una consecuencia, no un objetivo.`,
+    mixto: `${cab} Carga ${tlkm} TL/km, justo por encima de un rodaje puro: fácil casi todo y un remate rápido al final — de ahí el ",36" de los km.`,
+    calidad: `${cab} Carga ${tlkm} TL/km contra los 10,2 de un rodaje: esto lleva bloques a ritmo dentro.`,
+    dura: `${cab} Carga ${tlkm} TL/km. De las duras del plan: series o ritmo de maratón sostenido.`
+  }[cat];
+
+  const extra = conFuerza ? ' + fuerza COROS' : '';
+  const t = larga
+    ? (cat === 'suave' || cat === 'mixto' ? `Tirada larga ${nKm(run.km)} km` : `Tirada larga con ritmo ${nKm(run.km)} km`)
+    : cat === 'suave' || cat === 'mixto'
+      ? `Rodaje ${nKm(run.km)} km${extra}`
+      : `Calidad ${nKm(run.km)} km${extra}`;
+
+  const notes = [];
+  if (cat !== 'suave') {
+    notes.push(['COROS no expone la estructura por el conector: los bloques y los ritmos solo están en el reloj. Sal con el entreno cargado, no lo improvises por la calle.', 'warn']);
+  }
+  if (larga) {
+    notes.push(...nutriLarga(run.km, min, fecha));
+    if (cat === 'calidad' || cat === 'dura') {
+      notes.push(['No es una larga fácil: la carga dice ritmo dentro. En los tramos rápidos el pulso se te va por encima del techo y ahí está bien.', 'warn']);
+    }
+  }
+  if (notaFuerza) notes.push(notaFuerza);
+  if (afinado) notes.push(['Semana de la maratón: ni fuerza ni saltos. A estas alturas lo único que se construye es el descanso.', 'stop']);
+
+  const s = {
+    kind: larga ? 'larga' : (cat === 'calidad' || cat === 'dura') ? 'calidad' : 'rodaje',
+    t, sub: conFuerza ? `${sub} Además, la sesión de fuerza de COROS (${durFuerza}).` : sub,
+    km: run.km, durMin: min, notes
+  };
+  /* Pulso objetivo solo cuando la sesión es de verdad aeróbica. En una con
+     bloques a ritmo, pintar la banda 148-158 sería mentir. */
+  if (cat === 'suave' || cat === 'mixto') s.hr = larga ? 'larga' : 'facil';
+  if (conFuerza) s.grupos = [plioOpcional];
+  return s;
+}
 
 /* ============================================================
    AJUSTES — cambios puntuales acordados en el chat de coaching.
@@ -342,8 +470,8 @@ export const AJUSTES = {
   '2026-07-26': { ...PLAN['2026-07-25'], motivo: 'Noche larga del sábado 25: el parque de barras pasa al domingo' },
   '2026-08-17': {
     kind: 'descanso', t: 'Descanso',
-    sub: 'Día 1 del plan de COROS, pero vienes de la larga de 15 km con final a esfuerzo de maratón. Si el reloj pone rodaje suave, hazlo. Si pone calidad, muévela al martes.',
-    motivo: 'Arranque COROS al día siguiente de la sesión más dura de la fase base'
+    sub: 'Día 1 del bloque de COROS y no programa nada: el plan arranca mañana con 8 km. Mejor así, que vienes de la larga de 15,73 km del domingo.',
+    motivo: 'COROS deja libre el lunes de arranque; se confirma con el volcado del plan'
   }
 };
 
@@ -360,14 +488,7 @@ export function sesionDe(fecha) {
   };
   if (PLAN[fecha]) return PLAN[fecha];
   const d = new Date(fecha + 'T00:00:00');
-  if (d >= INICIO_COROS && d <= META) {
-    const base = COROS[d.getDay()];
-    const km = KM_COROS[fecha];
-    if (typeof km !== 'number') return base;
-    const s = { ...base, km, t: base.kind === 'larga' ? `Tirada larga ${km} km · COROS` : `${base.t} · ${km} km` };
-    if (s.kind === 'larga') s.notes = nutriLarga(km, duracionEstimadaMin(s));
-    return s;
-  }
+  if (d >= INICIO_COROS && d <= META) return sesionCoros(fecha, d);
   if (d > META) return { kind: 'descanso', t: 'Ya está', sub: 'La maratón fue el 6 de diciembre.' };
   return { kind: 'descanso', t: 'Sin plan', sub: 'Fuera del calendario del maratón.' };
 }

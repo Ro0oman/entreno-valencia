@@ -1,4 +1,5 @@
-import { META, BASE, INICIO_COROS, sesionDe, SALES, duracionEstimadaMin, minutosSales, capsulasSales } from './plan.js?v=4';
+import { META, BASE, INICIO_COROS, sesionDe, SALES, duracionEstimadaMin, minutosSales, capsulasSales, kmPrevistosCoros, semanaCoros } from './plan.js?v=5';
+import { HECHOS } from './hechos.js?v=1';
 
 /* ---------- API ---------- */
 const TK = 'entreno:token';
@@ -21,6 +22,15 @@ async function api(ruta, opts = {}) {
 
 let LOGS = [];
 let AJUSTES = {};   // ajustes del plan por fecha: { "YYYY-MM-DD": {swap:"..."} | {skip:true} }
+/* Sesiones = las del volumen (API) + las importadas de COROS que estén en el
+   repo (hechos.js). Manda la API: si un día se registró a mano o con el .fit,
+   esa entrada gana, porque trae deriva, zonas y splits que el conector no da.
+   Las de COROS solo rellenan huecos. */
+const fusionar = (api, coros) => {
+  const yaEstan = new Set(api.map(l => l.date));
+  return api.concat(coros.filter(h => !yaEstan.has(h.date)))
+            .sort((a, b) => a.date.localeCompare(b.date));
+};
 let CHECK = null;   // checklist de sales del día: { fecha, capsulas, bidon }
 let MAXC = null;    // temperatura máxima prevista hoy en Valencia, o null si no la hay
 
@@ -688,6 +698,18 @@ function pintarProg() {
   const ritmoAct = aero.length ? aRitmo(aero.at(-1).pace) : '—';
   const totalKm = Math.round(LOGS.reduce((s, l) => s + l.km, 0));
 
+  /* El plan entero, semana a semana: las 5 de la fase base + las 16 del bloque
+     COROS. Antes esto se cortaba el 16 ago y a partir de ahí los dos gráficos
+     que miran por semanas se quedaban congelados. */
+  const semanasPlan = [
+    ...BASE.map((w, i) => ({ lunes: w.lunes, meta: w.total, lb: `${i + 1}` })),
+    ...Array.from({ length: 16 }, (_, i) => {
+      const lunes = mas('2026-08-17', i * 7);
+      return { lunes, meta: kmPrevistosCoros(lunes), lb: `${i + 6}`, coros: i === 0 };
+    })
+  ];
+  const kmSemana = lunes => LOGS.filter(l => l.date >= lunes && l.date <= mas(lunes, 6)).reduce((s, l) => s + l.km, 0);
+
   /* Datos ricos del .fit — solo las sesiones que se guardaron desde el fichero
      los tienen. El control de fáciles se limita a rodajes (una larga deriva de por sí). */
   const derivas = LOGS.filter(l => typeof l.deriva === 'number').map(l => l.deriva);
@@ -720,8 +742,10 @@ function pintarProg() {
       <div class="prob-comp-bar"><div style="width:${Math.round(c.v * 100)}%"></div></div>
     </div>`).join('')}</div>
   </div>`;
-  const probPts = BASE.map(w => {
-    const fin = mas(w.lunes, 6);
+  /* Solo hasta la semana en curso: proyectar la probabilidad hacia semanas que
+     aún no existen repetiría el último valor y la curva mentiría plana. */
+  const probPts = semanasPlan.filter(w => w.lunes <= hoy()).map(w => {
+    const fin = mas(w.lunes, 6) > hoy() ? hoy() : mas(w.lunes, 6);
     const hasta = LOGS.filter(l => l.date <= fin);
     return hasta.length ? probabilidad(hasta, fin).pct : null;
   }).filter(v => v != null);
@@ -757,19 +781,22 @@ function pintarProg() {
     curva = `<div class="empty">Aún no hay sesiones a 148–162 ppm.<br>Registra un rodaje y esta curva empieza a existir.</div>`;
   }
 
-  /* km por semana */
-  const MAXM = 42;
-  const bars = BASE.map((w, i) => {
-    const real = LOGS.filter(l => l.date >= w.lunes && l.date <= mas(w.lunes, 6)).reduce((s, l) => s + l.km, 0);
-    const over = real > w.total * 1.1;
-    const metaH = Math.round((w.total / MAXM) * 120);
+  /* km por semana — las 21 del plan. La escala la fija el pico real (65 km en
+     la S5 de COROS), no un 42 fijo que ya se ha quedado corto. */
+  const lunHoy = lunesDe(hoy());
+  const MAXM = Math.max(1, ...semanasPlan.map(w => Math.max(w.meta, kmSemana(w.lunes))));
+  const bars = semanasPlan.map(w => {
+    const real = kmSemana(w.lunes);
+    const over = w.meta > 0 && real > w.meta * 1.1;
+    const metaH = Math.round((w.meta / MAXM) * 120);
     const fillH = Math.round(Math.min(real / MAXM, 1) * 120);
-    return `<div class="bar">
+    const cls = ['bar', w.coros ? 'fase' : '', w.lunes === lunHoy ? 'ahora' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}" title="${w.lunes}: ${Math.round(real)} de ${w.meta} km">
       <div class="col">
         <div class="meta" style="height:${metaH}px"></div>
         <div class="fill ${over ? 'over' : ''}" style="height:${fillH}px"></div>
       </div>
-      <div class="lb">S${i + 1}</div>
+      <div class="lb">${w.lb}</div>
     </div>`;
   }).join('');
 
@@ -820,14 +847,14 @@ function pintarProg() {
     ${trendBlock('Coste de pulso del 5:41', 'FC estimada para sostener el ritmo maratón (5:41), proyectada desde tus rodajes. <b>Baja = el 5:41 se vuelve asumible</b>. Objetivo: por debajo de ~172 ppm.', costes, v => `${v}`, 172)}
 
     <div class="pgrp">
-      <h4>Km por semana · fase base</h4>
-      <p class="hint">La barra hueca es lo previsto. Lo lleno, lo hecho. <b>Pasarse también es un fallo.</b></p>
+      <h4>Km por semana · las 21 del plan</h4>
+      <p class="hint">La barra hueca es lo previsto. Lo lleno, lo hecho. <b>Pasarse también es un fallo.</b> S1–S5 es la fase base; de la S6 en adelante manda COROS. Se arrastra para ver el resto.</p>
       <div class="bars bp">${CORNERS}
         <div class="barrow">${bars}</div>
         <div class="legend">
           <span><i style="background:var(--accent500)"></i>HECHO</span>
           <span><i style="background:var(--ink)"></i>PASADO DE ROSCA</span>
-          <span><i style="border:1px dashed var(--accent)"></i>META S5: 42 KM</span>
+          <span><i style="border:1px dashed var(--accent)"></i>PREVISTO · PICO ${MAXM} KM</span>
         </div>
       </div>
     </div>
@@ -845,7 +872,7 @@ function pintarProg() {
       <h4>Qué se espera de aquí a diciembre</h4>
       <div class="road">
         <div class="item"><span class="dot"></span><div class="d">16 AGO</div><p>Cerrar la base: 42 km/semana y tirada de 16 km.</p></div>
-        <div class="item"><span class="dot"></span><div class="d">17 AGO</div><p>Cargar el plan COROS de maratón, 16 semanas.</p></div>
+        <div class="item"><span class="dot"></span><div class="d">17 AGO</div><p>Plan COROS cargado: 16 semanas, 100 sesiones, pico de 28 km el 8 nov.</p></div>
         <div class="item"><span class="dot"></span><div class="d">OCTUBRE</div><p>Zapa de placa comprada y rodada 50–60 km. Pisar tramos reales del recorrido.</p></div>
         <div class="item last"><span class="dot"></span><div class="d">6 DIC</div><p>42,195 km a 5:41/km.</p></div>
       </div>
@@ -868,15 +895,17 @@ function lunesDe(fechaISO, offset = 0) {
   return iso(d);
 }
 
-/* Etiqueta corta de la derecha de cada día */
+/* Etiqueta corta de la derecha de cada día. Los km del plan COROS traen
+   decimales (12,36) y aquí van con coma, como en el resto de la app. */
 function etiquetaDia(s) {
+  const km = typeof s.km === 'number' ? `${String(s.km).replace('.', ',')} km` : null;
   switch (s.kind) {
     case 'descanso': return /Londres/i.test(s.t) ? '✈ VIAJE' : 'DESCANSO';
     case 'fuerza':   return 'FUERZA';
     case 'parque':   return 'PARQUE';
-    case 'calidad':  return 'CALIDAD';
-    case 'larga':    return typeof s.km === 'number' ? `${s.km} km` : 'LARGA';
-    default:         return typeof s.km === 'number' ? `${s.km} km` : 'RODAJE';
+    case 'calidad':  return 'CALIDAD';   // en calidad manda el tipo, no la distancia
+    case 'larga':    return km || 'LARGA';
+    default:         return km || 'RODAJE';
   }
 }
 
@@ -888,8 +917,9 @@ function pintarSemana() {
 
   const nSem = semanaDe(lunes);
   const base = BASE.find(w => w.lunes === lunes);
+  const nCoros = (dLun >= INICIO_COROS && dLun <= META) ? semanaCoros(lunes) : null;
   const fase = nSem ? `FASE BASE · S${nSem}`
-    : (dLun >= INICIO_COROS && dLun <= META) ? 'PLAN COROS'
+    : (dLun >= INICIO_COROS && dLun <= META) ? (nCoros ? `PLAN COROS · S${nCoros}/16` : 'PLAN COROS')
     : (dLun > META) ? 'DESPUÉS DE VALENCIA' : 'ANTES DEL PLAN';
   const rango = dLun.getMonth() === dDom.getMonth()
     ? `${dLun.getDate()}–${dDom.getDate()} ${MESES[dDom.getMonth()]}`
@@ -908,9 +938,11 @@ function pintarSemana() {
   }).join('');
 
   const kmReg = Math.round(LOGS.filter(l => l.date >= lunes && l.date <= mas(lunes, 6)).reduce((a, l) => a + l.km, 0));
-  const resumen = base
-    ? `<b>${base.total} km</b> previstos${kmReg ? ` · ${kmReg} registrados` : ''}`
-    : (kmReg ? `<b>${kmReg} km</b> registrados` : 'Plan COROS · km según el reloj');
+  const kmPlan = nCoros ? kmPrevistosCoros(lunes) : 0;
+  const previstos = base ? base.total : kmPlan;
+  const resumen = previstos
+    ? `<b>${previstos} km</b> previstos${kmReg ? ` · ${kmReg} registrados` : ''}`
+    : (kmReg ? `<b>${kmReg} km</b> registrados` : 'Sin plan esta semana');
 
   $('vSemana').innerHTML = `<div class="wk">
     <div class="wk-head">
@@ -1074,7 +1106,7 @@ async function arrancar() {
   if (!token) return puerta();
   try {
     const [logs, aj, ck] = await Promise.all([api('/sesiones'), api('/ajustes'), api('/checklist')]);
-    LOGS = logs; AJUSTES = aj || {}; CHECK = ck;
+    LOGS = fusionar(logs, HECHOS); AJUSTES = aj || {}; CHECK = ck;
   } catch {
     if (!token) return;        // era 401: api() ya mostró la puerta
     return mostrarError();     // 500 / red caída: pantalla de error con reintento, no en blanco
