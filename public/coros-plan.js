@@ -1,11 +1,17 @@
 /* ============================================================
    PLAN COROS — volcado literal del conector de COROS.
    Maratón Valencia · 6 dic 2026. Bloque de 16 semanas: 18 ago → 5 dic.
-   Volcado el 16 ago 2026. 100 sesiones.
+   Volcado inicial: 16 ago 2026. Última resincronización automática: 1 sep 2026.
 
-   ESTO ES UN VOLCADO, NO UNA OPINIÓN. Se reescribe entero cuando COROS
-   recalcule el plan; no lo edites a mano ni le añadas notas. Lo que tú
-   decides (Fuerza A, parque, descansos) vive en plan.js, encima de esto.
+   ESTO ES UN VOLCADO, NO UNA OPINIÓN. La rutina programada
+   "importar-coros-entreno-valencia" lo resincroniza sola en cada ejecución:
+   compara este AGENDA contra lo que devuelve queryTrainingSchedule desde el
+   primer día sin entreno todavía registrado en hechos.js hasta el 5 dic, y
+   si COROS ha recalculado algo — una sesión que cambia de km, o un día que
+   desaparece porque aligeró la semana — lo reescribe aquí solo. No lo edites
+   a mano ni le añadas notas: la próxima resincronización lo pisa. Lo que tú
+   decides (Fuerza A, parque, descansos, AJUSTES) vive en plan.js, encima de
+   esto, y eso la rutina no lo toca.
 
    Qué da el conector y qué no
    ---------------------------
@@ -52,10 +58,9 @@ export const AGENDA = {
 
   /* ---- Septiembre: semanas 3-6 ---- */
   '2026-09-01': [{ c: 'S5778', km: 6.00, t: '48:51', tl: 61 }, { c: 'S5729', t: '34:00' }],
-  '2026-09-02': [{ c: 'S5801', km: 13.36, t: '1:35:42', tl: 143 }],
-  '2026-09-03': [{ c: 'S5778', km: 6.00, t: '48:51', tl: 61 }, { c: 'S5724', t: '58:40' }],
-  '2026-09-05': [{ c: 'S5716', km: 9.36, t: '1:09:48', tl: 103 }],
-  '2026-09-06': [{ c: 'S5774', km: 18.00, t: '2:06:33', tl: 183 }],
+  '2026-09-03': [{ c: '8k carrera fácil', km: 8.00, t: '1:01:44', tl: 81 }, { c: 'S5724', t: '58:40' }],
+  '2026-09-05': [{ c: 'S5716', km: 8.00, t: '1:01:44', tl: 82 }],
+  '2026-09-06': [{ c: 'S5774', km: 12.00, t: '1:27:36', tl: 121 }],
 
   '2026-09-08': [{ c: 'S5818', km: 9.00, t: '1:08:17', tl: 92 }, { c: 'S5729', t: '34:00' }],
   '2026-09-09': [{ c: 'S5801', km: 13.36, t: '1:35:42', tl: 143 }],
