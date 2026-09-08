@@ -1,7 +1,7 @@
 /* ============================================================
    PLAN COROS — volcado literal del conector de COROS.
    Maratón Valencia · 6 dic 2026. Bloque de 16 semanas: 18 ago → 5 dic.
-   Volcado inicial: 16 ago 2026. Última resincronización automática: 1 sep 2026.
+   Volcado inicial: 16 ago 2026. Última resincronización automática: 8 sep 2026.
 
    ESTO ES UN VOLCADO, NO UNA OPINIÓN. La rutina programada
    "importar-coros-entreno-valencia" lo resincroniza sola en cada ejecución:
@@ -63,10 +63,9 @@ export const AGENDA = {
   '2026-09-06': [{ c: 'S5774', km: 12.00, t: '1:27:36', tl: 121 }],
 
   '2026-09-08': [{ c: 'S5818', km: 9.00, t: '1:08:17', tl: 92 }, { c: 'S5729', t: '34:00' }],
-  '2026-09-09': [{ c: 'S5801', km: 13.36, t: '1:35:42', tl: 143 }],
   '2026-09-10': [{ c: 'S5778', km: 6.00, t: '48:51', tl: 61 }, { c: 'S5724', t: '58:40' }],
-  '2026-09-12': [{ c: 'S5716', km: 9.36, t: '1:09:48', tl: 103 }],
-  '2026-09-13': [{ c: 'S5804', km: 20.00, t: '2:19:30', tl: 204 }],
+  '2026-09-12': [{ c: '9km', km: 9.00, t: '1:08:12', tl: 92 }],
+  '2026-09-13': [{ c: 'Tirada larga 14k', km: 14.00, t: '1:40:32', tl: 143 }],
 
   '2026-09-15': [{ c: 'S5799', km: 10.00, t: '1:14:45', tl: 102 }, { c: 'S5729', t: '34:00' }],
   '2026-09-16': [{ c: 'S5798', km: 15.36, t: '1:48:39', tl: 164 }],
