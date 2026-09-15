@@ -52,5 +52,8 @@ export const HECHOS = [
   { date: '2026-09-03', km: 8.72,  hr: 148, pace: 411, cad: 156, notas: '8k carrera fácil · 59:41 · COROS' },
   { date: '2026-09-05', km: 8.97,  hr: 141, pace: 436, cad: 153, notas: '8 km carrera fácil + 6 sprints · 1:05:09 · COROS' },
   { date: '2026-09-06', km: 12.68, hr: 140, pace: 415, cad: 159, notas: 'Tirada larga 18k · 1:27:38 · COROS' },
-  { date: '2026-09-08', km: 5.72,  hr: 139, pace: 419, cad: 159, notas: '8k carrera fácil · 39:54 · COROS' }
+  { date: '2026-09-08', km: 5.72,  hr: 139, pace: 419, cad: 159, notas: '8k carrera fácil · 39:54 · COROS' },
+  { date: '2026-09-12', km: 8.71,  hr: 145, pace: 426, cad: 157, notas: '8k carrera fácil · 1:01:45 · COROS' },
+  { date: '2026-09-13', km: 7.68,  hr: 134, pace: 424, cad: 159, notas: '9km carrera fácil · 54:14 · COROS' },
+  { date: '2026-09-15', km: 6.01,  hr: 132, pace: 446, cad: 157, notas: '6k carrera fácil · 44:45 · COROS' }
 ];
