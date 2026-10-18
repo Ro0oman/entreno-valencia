@@ -142,7 +142,11 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Content-Security-Policy',
-    "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+    // googletagmanager/google-analytics: sin estos, la CSP bloquea el tag de GA4.
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; " +
+    "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; " +
+    "style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com; " +
+    "font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
   res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
   next();
 });
